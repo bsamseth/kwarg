@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 typedef struct {
@@ -16,9 +17,9 @@ typedef struct {
 } argparse_argspec_t;
 
 typedef struct {
-  size_t argc;
+  const size_t argc;
   const char **argv;
-  bool used[1024];
+  bool *used;
   bool fail;
   bool help;
 } argparse_parser_t;
@@ -114,6 +115,8 @@ static inline int argparse_finish(argparse_parser_t *parser) {
       return 1;
     }
   }
+
+  free(parser->used);
   return parser->fail ? 1 : 0;
 }
 
@@ -121,9 +124,10 @@ static inline argparse_parser_t
 argparse_init_from_opts(int argc, const char *argv[static argc],
                         argparse_init_opts_t opts) {
   assert(argc > 0);
-  assert(argc < 1024);
   assert(argv != NULL);
-  argparse_parser_t parser = {.argc = argc, .argv = argv};
+  argparse_parser_t parser = {
+      .argc = argc, .argv = argv, .used = calloc(argc, 1)};
+  assert(parser.used != NULL);
 
   if (!opts.no_help) {
     if ((opts.no_args_shows_help && argc == 1) ||
