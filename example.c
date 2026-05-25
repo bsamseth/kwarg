@@ -6,12 +6,22 @@
 #include "argparse.h"
 
 int main(int argc, const char *argv[static argc]) {
-  auto parser = argparse_init(argc, argv, .no_args_shows_help = true);
+  auto parser = argparse_init(
+      argc, argv, .no_args_shows_help = true,
+      .tagline = "Example CLI to showcase how to use the library.",
+      .description = "This is where a longer description of the CLI would go. "
+                     "Maybe the library should handle wrapping?",
+      // Explicit usage, since we can't deduce it ahead of time.
+      .usage = "[OPTIONS] FIZZ", );
 
+  argparse_help_section(&parser, "OPTIONS");
   bool foo = argparse_flag(&parser, .name = "--foo-mode", .short_name = 'f',
                            .help = "Enable foo mode");
   auto bar = argparse_str(&parser, .name = "--bar", .short_name = 'b',
                           .help = "What the bar?");
+  argparse_help_help(&parser);
+
+  argparse_help_section(&parser, "ARGUMENTS");
   auto fizz =
       argparse_str(&parser, .name = "fizz", .help = "Which fizz to use");
 

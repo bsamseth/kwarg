@@ -8,6 +8,9 @@
 typedef struct {
   bool no_help;
   bool no_args_shows_help;
+  const char *tagline;
+  const char *description;
+  const char *usage;
 } argparse_init_opts_t;
 
 typedef struct {
@@ -25,13 +28,25 @@ typedef struct {
 } argparse_parser_t;
 
 // Public API.
+/** Initialize an argument parser from the command line arguments. */
 #define argparse_init(argc, argv, ...)                                         \
   argparse_init_from_opts((argc), (argv), (argparse_init_opts_t){__VA_ARGS__})
+/** Parse a flag-style option that resolves to true if the flag is set. */
 #define argparse_flag(parser, ...)                                             \
   argparse_flag_from_opts((parser), (argparse_argspec_t){__VA_ARGS__})
+/** Parse a string argument/option. */
 #define argparse_str(parser, ...)                                              \
   argparse_str_from_opts((parser), (argparse_argspec_t){__VA_ARGS__})
+/** Finalize argument parsing, returning 0 if no errors occured. */
 int argparse_finish(argparse_parser_t *parser);
+
+// Public help string utilities.
+/** Insert a section header into the help message. */
+void argparse_help_section(argparse_parser_t *parser, const char *section_name);
+/** Insert help for the help option. */
+#define argparse_help_help(parser)                                             \
+  argparse_flag((parser), .name = "--help", .short_name = 'h',                 \
+                .help = "Show this help message.")
 
 // Backend of public API (usable if macros aren't desired).
 argparse_parser_t argparse_init_from_opts(int argc,
@@ -121,9 +136,7 @@ bool argparse_flag_from_opts(argparse_parser_t *parser,
 
 int argparse_finish(argparse_parser_t *parser) {
   if (parser->help) {
-    // Fake parse out the help flag, so that it also gets added to the help.
-    argparse_flag(parser, .name = "--help", .short_name = 'h',
-                  .help = "Show this help message");
+    free(parser->used);
     return 1;
   }
 
@@ -151,11 +164,25 @@ argparse_parser_t argparse_init_from_opts(int argc,
     if ((opts.no_args_shows_help && argc == 1) ||
         argparse_flag(&parser, .name = "--help", .short_name = 'h')) {
       parser.help = true;
-      printf("Start of help message\n");
+
+      if (opts.tagline)
+        printf("%s\n\n", opts.tagline);
+      if (opts.description)
+        printf("%s\n\n", opts.description);
+      if (opts.usage)
+        printf("Usage: %s %s\n\n", argv[0], opts.usage);
     }
   }
 
   return parser;
 }
+
+void argparse_help_section(argparse_parser_t *parser,
+                           const char *section_name) {
+  if (!parser->help)
+    return;
+  printf("\n%s\n", section_name);
+}
+
 #endif
 #endif
