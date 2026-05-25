@@ -6,25 +6,43 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#define VECTOR_INCLUDE_IMPLEMENTATION
+#include "vector.h"
 
 typedef struct {
   bool no_help;
   bool no_args_shows_help;
   const char *tagline;
   const char *description;
-  const char *usage;
+  const char *explicit_usage;
 } argparse_init_opts_t;
 
 typedef struct {
   char *name;
   char short_name;
   char *help;
+  bool required;
 } argparse_argspec_t;
+
+typedef enum {
+  _ARGPARSE_POSITIONAL,
+  _ARGPARSE_OPTION,
+  _ARGPARSE_FLAG,
+} _argparse_arg_kind_t;
+
+typedef struct {
+  _argparse_arg_kind_t kind;
+  argparse_argspec_t spec;
+  bool provided_in_argv;
+} _argparse_tagged_argspec_t;
+VECTOR_IMPL(_argparse_tagged_argspec_t, _argparse_tas) // "[t]ag [a]rg [s]pecs
 
 typedef struct {
   const size_t argc;
   const char **argv;
+  _argparse_tas argspecs;
   int16_t *remaining_arg_uses;
+  argparse_init_opts_t init_opts;
   bool fail;
   bool help;
 } argparse_parser_t;
@@ -41,16 +59,6 @@ typedef struct {
   argparse_str_from_opts((parser), (argparse_argspec_t){__VA_ARGS__})
 /** Finalize argument parsing, returning 0 if no errors occured. */
 int argparse_finish(argparse_parser_t *parser);
-
-// Public help string utilities.
-/** Insert a section header into the help message. */
-void argparse_help_section(argparse_parser_t *parser, const char *section_name);
-/** Insert help for the help option. */
-#define argparse_help_help(parser)                                             \
-  argparse_flag((parser), .name = "--help", .short_name = 'h',                 \
-                .help = "Show this help message.")
-void argparse_derived_usage(
-    argparse_parser_t *parser); // TODO: Implement automatic usage derivation.
 
 // Backend of public API (usable if macros aren't desired).
 argparse_parser_t argparse_init_from_opts(int argc,
@@ -70,21 +78,55 @@ static bool _argparse_arg_matches_short_opt(const char arg[static 1],
 #ifndef ARGPARSE_IMPLEMENTATION_INCLUDED
 #define ARGPARSE_IMPLEMENTATION_INCLUDED
 
-static void _argparse_print_help_for_argspec(argparse_argspec_t opts) {
-  // TODO: Make this smarter depending on possible null values.
-  printf("%s, -%c\n\t%s\n", opts.name, opts.short_name, opts.help);
+argparse_parser_t argparse_init_from_opts(int argc,
+                                          const char *argv[static argc],
+                                          argparse_init_opts_t opts) {
+  assert(argc > 0);
+  assert(argv != NULL);
+  argparse_parser_t parser = {
+      .argc = argc,
+      .argv = argv,
+      .remaining_arg_uses = calloc(argc, sizeof(*parser.remaining_arg_uses)),
+      .argspecs = _argparse_tas_init(argc),
+      .init_opts = opts};
+  assert(parser.remaining_arg_uses != NULL);
+
+  // Short opts like -abc can be combined and should be parsed as many times
+  // as there are short opts in the argument.
+  // Positional and long-form options should be used once.
+  for (size_t i = 1; i < parser.argc; ++i) {
+    const char *arg = argv[i];
+    if (arg[0] != '-' || arg[1] == '-') {
+      parser.remaining_arg_uses[i] = 1;
+    } else {
+      parser.remaining_arg_uses[i] = strlen(arg) - 1;
+    }
+  }
+
+  if (!opts.no_help) {
+    if ((opts.no_args_shows_help && argc == 1) ||
+        argparse_flag(&parser, .name = "--help", .short_name = 'h')) {
+      parser.help = true;
+
+      if (opts.tagline)
+        printf("%s\n\n", opts.tagline);
+      if (opts.description)
+        printf("%s\n\n", opts.description);
+      if (opts.explicit_usage)
+        printf("Usage: %s %s\n\n", argv[0], opts.explicit_usage);
+    }
+  }
+
+  return parser;
 }
 
 const char *argparse_str_from_opts(argparse_parser_t *parser,
                                    argparse_argspec_t opts) {
-  if (parser->help) {
-    _argparse_print_help_for_argspec(opts);
-    return NULL;
-  }
-
   bool is_option = opts.short_name || !strncmp(opts.name, "-", 1);
+  const char *user_provided_argument = NULL;
 
-  for (size_t i = 1; i < parser->argc; ++i) {
+  // If --help was provided, skip parsing.
+  for (size_t i = 1; !parser->help && i < parser->argc; ++i) {
     if (parser->remaining_arg_uses[i] <= 0)
       continue;
 
@@ -95,7 +137,8 @@ const char *argparse_str_from_opts(argparse_parser_t *parser,
       continue;
     else if (!arg_is_option) {
       parser->remaining_arg_uses[i] = 0;
-      return parser->argv[i];
+      user_provided_argument = parser->argv[i];
+      break;
     } else { // arg is option
       if (!strcmp(arg, opts.name) ||
           _argparse_arg_matches_short_opt(arg, opts)) {
@@ -103,27 +146,31 @@ const char *argparse_str_from_opts(argparse_parser_t *parser,
 
         if (i == parser->argc - 1) {
           parser->fail = true;
-          fprintf(stderr, "Missing argument to %s\n", opts.name);
-          return NULL;
+          fprintf(stderr, "Missing argument to %s (-%c)\n", opts.name,
+                  opts.short_name);
+          break;
         }
         parser->remaining_arg_uses[i + 1] = 0;
 
-        return parser->argv[i + 1];
+        user_provided_argument = parser->argv[i + 1];
+        break;
       }
     }
   }
 
-  return NULL;
+  _argparse_tas_push(
+      &parser->argspecs,
+      (_argparse_tagged_argspec_t){
+          .kind = is_option ? _ARGPARSE_OPTION : _ARGPARSE_POSITIONAL,
+          .spec = opts,
+          .provided_in_argv = user_provided_argument != NULL});
+  return user_provided_argument;
 }
 
 bool argparse_flag_from_opts(argparse_parser_t *parser,
                              argparse_argspec_t opts) {
-  if (parser->help) {
-    _argparse_print_help_for_argspec(opts);
-    return false;
-  }
-
-  for (size_t i = 1; i < parser->argc; ++i) {
+  bool flag_set = false;
+  for (size_t i = 1; !parser->help && i < parser->argc; ++i) {
     if (parser->remaining_arg_uses[i] <= 0)
       continue;
 
@@ -131,14 +178,21 @@ bool argparse_flag_from_opts(argparse_parser_t *parser,
 
     if (!strcmp(arg, opts.name)) {
       parser->remaining_arg_uses[i] = 0;
-      return true;
+      flag_set = true;
+      break;
     }
     if (_argparse_arg_matches_short_opt(arg, opts)) {
       parser->remaining_arg_uses[i]--;
-      return true;
+      flag_set = true;
+      break;
     }
   }
-  return false;
+
+  _argparse_tas_push(
+      &parser->argspecs,
+      (_argparse_tagged_argspec_t){
+          .kind = _ARGPARSE_FLAG, .spec = opts, .provided_in_argv = flag_set});
+  return flag_set;
 }
 
 static bool _argparse_arg_matches_short_opt(const char arg[static 1],
@@ -163,59 +217,57 @@ int argparse_finish(argparse_parser_t *parser) {
 
   for (size_t i = 1; i < parser->argc; ++i) {
     if (parser->remaining_arg_uses[i] > 0) {
-      parser->fail = 1;
-      fprintf(stderr, "Unexpected argument: %s\n", parser->argv[i]);
+      parser->fail = true;
+      const char *arg = parser->argv[i];
+
+      // Unexpected positional and long-form option:
+      if (arg[0] != '-' || arg[1] == '-') {
+        fprintf(stderr, "Unexpected argument: %s\n", arg);
+        continue;
+      }
+
+      // Unexpected short-form option.
+      // We make sure to only output diagnostics for the short-form options that
+      // aren't defined, in case of joined options like `-abc`. If `-a` is
+      // defined, then diagnostics are only emitted for `-b` and `-c`.
+      for (const char *opt = parser->argv[i] + 1; *opt; ++opt) {
+        bool opt_is_defined = false;
+        for (size_t j = 0; j < _argparse_tas_len(parser->argspecs); ++j) {
+          auto spec = parser->argspecs[j];
+          if (spec.spec.short_name == *opt) {
+            opt_is_defined = true;
+            break;
+          }
+        }
+        if (!opt_is_defined) {
+          fprintf(stderr, "Unexpected argument: -%c\n", *opt);
+          if (--parser->remaining_arg_uses[i] == 0)
+            break;
+        }
+      }
+    }
+  }
+
+  for (size_t i = 0; i < _argparse_tas_len(parser->argspecs); ++i) {
+    auto spec = parser->argspecs[i];
+    if (spec.kind == _ARGPARSE_POSITIONAL && !spec.provided_in_argv) {
+      fprintf(stderr, "Missing positional argument: %s\n", spec.spec.name);
+      parser->fail = true;
+    } else if (!spec.provided_in_argv && spec.kind == _ARGPARSE_OPTION &&
+               parser->argspecs[i].spec.required) {
+      fprintf(stderr, "Missing required option: %s\n", spec.spec.name);
+      parser->fail = true;
     }
   }
 
   free(parser->remaining_arg_uses);
+  _argparse_tas_free(parser->argspecs);
   return parser->fail ? 1 : 0;
 }
 
-argparse_parser_t argparse_init_from_opts(int argc,
-                                          const char *argv[static argc],
-                                          argparse_init_opts_t opts) {
-  assert(argc > 0);
-  assert(argv != NULL);
-  argparse_parser_t parser = {
-      .argc = argc,
-      .argv = argv,
-      .remaining_arg_uses = calloc(argc, sizeof(*parser.remaining_arg_uses))};
-  assert(parser.remaining_arg_uses != NULL);
-
-  for (size_t i = 1; i < parser.argc; ++i) {
-    const char *arg = argv[i];
-    if (arg[0] != '-' || arg[1] == '-') {
-      parser.remaining_arg_uses[i] = 1;
-    } else {
-      // Short opts like -abc can be combined and should be parsed as many times
-      // as there are short opts in the argument.
-      parser.remaining_arg_uses[i] = strlen(arg) - 1;
-    }
-  }
-
-  if (!opts.no_help) {
-    if ((opts.no_args_shows_help && argc == 1) ||
-        argparse_flag(&parser, .name = "--help", .short_name = 'h')) {
-      parser.help = true;
-
-      if (opts.tagline)
-        printf("%s\n\n", opts.tagline);
-      if (opts.description)
-        printf("%s\n\n", opts.description);
-      if (opts.usage)
-        printf("Usage: %s %s\n\n", argv[0], opts.usage);
-    }
-  }
-
-  return parser;
-}
-
-void argparse_help_section(argparse_parser_t *parser,
-                           const char *section_name) {
-  if (!parser->help)
-    return;
-  printf("\n%s\n", section_name);
+static void _argparse_print_help_for_argspec(argparse_argspec_t opts) {
+  // TODO: Make this smarter depending on possible null values.
+  printf("%s, -%c\n\t%s\n", opts.name, opts.short_name, opts.help);
 }
 
 #endif
