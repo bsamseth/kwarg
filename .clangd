@@ -1,2 +1,10 @@
 CompileFlags:
-  Add: [-Wall, -Wextra, -Wpedantic, -std=c23, -xc-header]
+  Add:
+    [
+      -Wall,
+      -Wextra,
+      -Wpedantic,
+      -std=c23,
+      -xc-header,
+      -DARGPARSE_INCLUDE_IMPLEMENTATION,
+    ]

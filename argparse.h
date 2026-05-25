@@ -24,20 +24,38 @@ typedef struct {
   bool help;
 } argparse_parser_t;
 
+// Public API.
 #define argparse_init(argc, argv, ...)                                         \
   argparse_init_from_opts((argc), (argv), (argparse_init_opts_t){__VA_ARGS__})
 #define argparse_flag(parser, ...)                                             \
   argparse_flag_from_opts((parser), (argparse_argspec_t){__VA_ARGS__})
 #define argparse_str(parser, ...)                                              \
   argparse_str_from_opts((parser), (argparse_argspec_t){__VA_ARGS__})
+int argparse_finish(argparse_parser_t *parser);
 
-static inline void _argparse_print_help_for_argspec(argparse_argspec_t opts) {
+// Backend of public API (usable if macros aren't desired).
+argparse_parser_t argparse_init_from_opts(int argc,
+                                          const char *argv[static argc],
+                                          argparse_init_opts_t opts);
+bool argparse_flag_from_opts(argparse_parser_t *parser,
+                             argparse_argspec_t opts);
+const char *argparse_str_from_opts(argparse_parser_t *parser,
+                                   argparse_argspec_t opts);
+
+// "Private" helper API
+void _argparse_print_help_for_argspec(argparse_argspec_t opts);
+
+#ifdef ARGPARSE_INCLUDE_IMPLEMENTATION
+#ifndef ARGPARSE_IMPLEMENTATION_INCLUDED
+#define ARGPARSE_IMPLEMENTATION_INCLUDED
+
+void _argparse_print_help_for_argspec(argparse_argspec_t opts) {
   // TODO: Make this smarter depending on possible null values.
   printf("%s, -%c\n\t%s\n", opts.name, opts.short_name, opts.help);
 }
 
-static inline const char *argparse_str_from_opts(argparse_parser_t *parser,
-                                                 argparse_argspec_t opts) {
+const char *argparse_str_from_opts(argparse_parser_t *parser,
+                                   argparse_argspec_t opts) {
   if (parser->help) {
     _argparse_print_help_for_argspec(opts);
     return NULL;
@@ -79,8 +97,8 @@ static inline const char *argparse_str_from_opts(argparse_parser_t *parser,
   return NULL;
 }
 
-static inline bool argparse_flag_from_opts(argparse_parser_t *parser,
-                                           argparse_argspec_t opts) {
+bool argparse_flag_from_opts(argparse_parser_t *parser,
+                             argparse_argspec_t opts) {
   if (parser->help) {
     _argparse_print_help_for_argspec(opts);
     return false;
@@ -101,7 +119,7 @@ static inline bool argparse_flag_from_opts(argparse_parser_t *parser,
   return false;
 }
 
-static inline int argparse_finish(argparse_parser_t *parser) {
+int argparse_finish(argparse_parser_t *parser) {
   if (parser->help) {
     // Fake parse out the help flag, so that it also gets added to the help.
     argparse_flag(parser, .name = "--help", .short_name = 'h',
@@ -120,9 +138,9 @@ static inline int argparse_finish(argparse_parser_t *parser) {
   return parser->fail ? 1 : 0;
 }
 
-static inline argparse_parser_t
-argparse_init_from_opts(int argc, const char *argv[static argc],
-                        argparse_init_opts_t opts) {
+argparse_parser_t argparse_init_from_opts(int argc,
+                                          const char *argv[static argc],
+                                          argparse_init_opts_t opts) {
   assert(argc > 0);
   assert(argv != NULL);
   argparse_parser_t parser = {
@@ -139,3 +157,5 @@ argparse_init_from_opts(int argc, const char *argv[static argc],
 
   return parser;
 }
+#endif
+#endif
