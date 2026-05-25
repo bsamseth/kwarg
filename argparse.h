@@ -37,30 +37,41 @@ static inline void _argparse_print_help_for_argspec(argparse_argspec_t opts) {
 
 static inline const char *argparse_str_from_opts(argparse_parser_t *parser,
                                                  argparse_argspec_t opts) {
-
   if (parser->help) {
     _argparse_print_help_for_argspec(opts);
     return NULL;
   }
+
+  bool is_option = opts.short_name || !strncmp(opts.name, "-", 1);
 
   for (size_t i = 1; i < parser->argc; ++i) {
     if (parser->used[i])
       continue;
 
     const char *arg = parser->argv[i];
-    size_t length = strlen(arg);
-    if ((length == 2 && arg[0] == '-' && arg[1] == opts.short_name) ||
-        (length > 2 && arg[0] == '-' && arg[1] == '-' &&
-         !strcmp(arg, opts.name))) {
+    bool arg_is_option = arg[0] == '-';
 
-      if (i == parser->argc - 1) {
-        parser->used[i] = true;
-        parser->fail = true;
-        fprintf(stderr, "Missing argument to %s\n", opts.name);
-        return NULL;
+    if (is_option != arg_is_option)
+      continue;
+
+    if (is_option) {
+      size_t length = strlen(arg);
+      if ((length == 2 && arg[0] == '-' && arg[1] == opts.short_name) ||
+          (length > 2 && arg[0] == '-' && arg[1] == '-' &&
+           !strcmp(arg, opts.name))) {
+
+        if (i == parser->argc - 1) {
+          parser->used[i] = true;
+          parser->fail = true;
+          fprintf(stderr, "Missing argument to %s\n", opts.name);
+          return NULL;
+        }
+        parser->used[i] = parser->used[i + 1] = true;
+        return parser->argv[i + 1];
       }
-      parser->used[i] = parser->used[i + 1] = true;
-      return parser->argv[i + 1];
+    } else {
+      parser->used[i] = true;
+      return parser->argv[i];
     }
   }
 
