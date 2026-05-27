@@ -9,6 +9,15 @@
 #define VECTOR_INCLUDE_IMPLEMENTATION
 #include "vector.h"
 
+// Options for argparse_init / argparse_init_from_opts.
+//
+// Members:
+//   - no_help: Disable the automatic --help/-h flag (default: false).
+//   - no_args_shows_help: Show help when no arguments are given
+//     (default: false).
+//   - tagline: Short tagline shown at the top of help output.
+//   - description: Description text shown after the tagline in help output.
+//   - explicit_usage: Custom usage string in place of the auto-generated one.
 typedef struct {
   bool no_help;
   bool no_args_shows_help;
@@ -17,11 +26,34 @@ typedef struct {
   const char *explicit_usage;
 } argparse_init_opts_t;
 
+// Options for argparse_finish / argparse_finish_from_opts.
+//
+// Members:
+//   - no_exit_on_failure: Return ARGPARSE_PARSE_FAILED instead of calling
+//     exit(1) (default: false).
+//   - no_exit_on_help: Return ARGPARSE_HELP_INVOKED instead of calling exit(0)
+//     (default: false).
 typedef struct {
   bool no_exit_on_failure;
   bool no_exit_on_help;
 } argparse_finish_opts_t;
 
+// Options for argparse_flag / argparse_str and their _from_opts backends.
+//
+// Members:
+//   - name: Long name (e.g. "--verbose", "--output"). A name beginning with
+//     "--" makes this an option; otherwise it is a positional argument.
+//     This parameter _must_ be provided.
+//   - short_name: Single-character short form (e.g. 'v', 'o'). Should only be
+//     set if `.name` has two leading `-`, as otherwise it is ambiguous whether
+//     or not this is a positional argument or an option.
+//   - help: Help text displayed for this argument.
+//   - required: Mark this option as required (only meaningful for
+//     options, it is ignored for flags and positional arguments).
+//
+// NB: Do not set `-foo` as the name, using a single leading `-`. This will
+// trigger an assertion, because it would be parsed as the joined form of
+// `-f -o -o`, and would not work the way you want.
 typedef struct {
   char *name;
   char short_name;
@@ -63,18 +95,51 @@ typedef enum {
 ///////////////////////////////////////////////////////////////////////////////
 
 // Initialize an argument parser from the command line arguments.
+//
+// Optional named arguments (argparse_init_opts_t):
+//   - .no_help (bool): Disable the automatic --help/-h flag (default: false).
+//   - .no_args_shows_help (bool): Show help when no arguments are given
+//     (default: false).
+//   - .tagline (const char *): Short tagline shown at the top of help output.
+//   - .description (const char *): Description text shown after the tagline in
+//     help output.
+//   - .explicit_usage (const char *): Custom usage string in place of the
+//     auto-generated one.
 #define argparse_init(argc, argv, ...)                                         \
   argparse_init_from_opts((argc), (argv), (argparse_init_opts_t){__VA_ARGS__})
 // Parse a flag-style option that resolves to true if the flag is set.
+//
+// Optional named arguments (argparse_argspec_t):
+//   - .name (const char *): Long flag name, e.g. "--verbose".
+//   - .short_name (char): Single-character short flag, e.g. 'v'.
+//   - .help (const char *): Help text displayed for this flag.
 #define argparse_flag(parser, ...)                                             \
   argparse_flag_from_opts((parser), (argparse_argspec_t){__VA_ARGS__})
-// Parse a string argument/option.
+// Parse a string argument (positional) or string option (--name=value or
+// -n value).
+//
+// A short_name and/or a name beginning with "-" makes this an option;
+// otherwise it is treated as a positional argument.
+//
+// Optional named arguments (argparse_argspec_t):
+//   - .name (const char *): Long option name (e.g. "--output") or positional
+//     argument name (e.g. "FILE").
+//   - .short_name (char): Single-character short option, e.g. 'o'.
+//   - .help (const char *): Help text displayed for this argument.
+//   - .required (bool): Mark this option as required (only meaningful for
+//     options, not positional arguments).
 #define argparse_str(parser, ...)                                              \
   argparse_str_from_opts((parser), (argparse_argspec_t){__VA_ARGS__})
 // Finalize argument parsing.
 //
 // By default this will call `exit(1)` if parsing failed, or `exit(0)` if
 // --help was invoked. This can be disabled with the appropriate option.
+//
+// Optional named arguments (argparse_finish_opts_t):
+//   - .no_exit_on_failure (bool): Return ARGPARSE_PARSE_FAILED instead of
+//     calling exit(1) (default: false).
+//   - .no_exit_on_help (bool): Return ARGPARSE_HELP_INVOKED instead of
+//     calling exit(0) (default: false).
 //
 // See `argparse_finish_from_opts` for the return value.
 #define argparse_finish(parser, ...)                                           \
@@ -85,13 +150,23 @@ typedef enum {
 ///////////////////////////////////////////////////////////////////////////////
 
 /// Initialize an argument parser from the command line arguments.
+///
+/// See argparse_init_opts_t for available options.
 argparse_parser_t argparse_init_from_opts(int argc,
                                           const char *argv[static argc],
                                           argparse_init_opts_t opts);
 /// Parse a flag-style option that resolves to true if the flag is set.
+///
+/// See argparse_argspec_t for available options.
 bool argparse_flag_from_opts(argparse_parser_t *parser,
                              argparse_argspec_t opts);
-/// Parse a string argument/option.
+/// Parse a string argument (positional) or string option (--name=value or
+/// -n value).
+///
+/// A short_name and/or a name beginning with "--" makes this an option;
+/// otherwise it is treated as a positional argument.
+///
+/// See argparse_argspec_t for available options.
 const char *argparse_str_from_opts(argparse_parser_t *parser,
                                    argparse_argspec_t opts);
 // Finalize argument parsing.
@@ -103,6 +178,8 @@ const char *argparse_str_from_opts(argparse_parser_t *parser,
 // - Returns `ARGPARSE_PARSE_FAILED` (-1) if parsing failed in any way.
 //   Diagnostics have been written to stderr and you should exit the program if
 //   this was returned.
+//
+// See argparse_finish_opts_t for available options.
 argparse_result_t argparse_finish_from_opts(argparse_parser_t *parser,
                                             argparse_finish_opts_t opts);
 
@@ -115,6 +192,7 @@ void _argparse_show_help(const argparse_parser_t *parser, FILE *out);
 void _argparse_show_usage(const argparse_parser_t *parser, FILE *out);
 void _argparse_show_arguments_help(const argparse_parser_t *parser, FILE *out);
 void _argparse_show_options_help(const argparse_parser_t *parser, FILE *out);
+void _argparse_validate_argspec(const argparse_argspec_t opts);
 
 #ifdef ARGPARSE_INCLUDE_IMPLEMENTATION
 #ifndef ARGPARSE_IMPLEMENTATION_INCLUDED
@@ -155,6 +233,7 @@ argparse_parser_t argparse_init_from_opts(int argc,
 
   return parser;
 }
+
 void _argparse_show_help(const argparse_parser_t *parser, FILE *out) {
   if (out == NULL)
     out = stdout;
@@ -227,6 +306,7 @@ void _argparse_show_options_help(const argparse_parser_t *parser, FILE *out) {
 
 const char *argparse_str_from_opts(argparse_parser_t *parser,
                                    argparse_argspec_t opts) {
+  _argparse_validate_argspec(opts);
   bool is_option = opts.short_name || !strncmp(opts.name, "-", 1);
   const char *user_provided_argument = NULL;
 
@@ -274,6 +354,7 @@ const char *argparse_str_from_opts(argparse_parser_t *parser,
 
 bool argparse_flag_from_opts(argparse_parser_t *parser,
                              argparse_argspec_t opts) {
+  _argparse_validate_argspec(opts);
   bool flag_set = false;
   for (size_t i = 1; !parser->help && i < parser->argc; ++i) {
     if (parser->remaining_arg_uses[i] <= 0)
@@ -386,6 +467,38 @@ cleanup:
     return ARGPARSE_PARSE_FAILED;
   default:
     unreachable();
+  }
+}
+
+void _argparse_debug_dump_argspec(const argparse_argspec_t opts) {
+  fprintf(stderr,
+          "{\n\t.name = \"%s\",\n\t.short_name = "
+          "'%c',\n\t.required = %s,\n\t.help = \"%s\"\n}\n",
+          opts.name, opts.short_name, opts.required ? "true" : "false",
+          opts.help);
+}
+
+void _argparse_validate_argspec(const argparse_argspec_t opts) {
+  if (opts.name == NULL) {
+    fprintf(stderr, "Invalid specification:\n");
+    _argparse_debug_dump_argspec(opts);
+    fprintf(stderr,
+            "You must specify the .name field for any options/flags.\n");
+    exit(1);
+  }
+  if (opts.name[0] == '-' && opts.name[1] != '-') {
+    fprintf(stderr, "Invalid specification:\n");
+    _argparse_debug_dump_argspec(opts);
+    fprintf(stderr,
+            "Argument names cannot start with a single `-`, they must either "
+            "not start with a `-` or start with `--`.\n");
+    exit(1);
+  }
+  if (opts.short_name == '-') {
+    fprintf(stderr, "Invalid specification:\n");
+    _argparse_debug_dump_argspec(opts);
+    fprintf(stderr, "Short names cannot use the `-` character.\n");
+    exit(1);
   }
 }
 
