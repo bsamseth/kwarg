@@ -18,6 +18,11 @@ typedef struct {
 } argparse_init_opts_t;
 
 typedef struct {
+  bool no_exit_on_failure;
+  bool no_exit_on_help;
+} argparse_finish_opts_t;
+
+typedef struct {
   char *name;
   char short_name;
   char *help;
@@ -47,32 +52,69 @@ typedef struct {
   bool help;
 } argparse_parser_t;
 
-// Public API.
-/** Initialize an argument parser from the command line arguments. */
+typedef enum {
+  ARGPARSE_PARSE_OK,
+  ARGPARSE_HELP_INVOKED,
+  ARGPARSE_PARSE_FAILED = -1,
+} argparse_result_t;
+
+///////////////////////////////////////////////////////////////////////////////
+// Public API
+///////////////////////////////////////////////////////////////////////////////
+
+// Initialize an argument parser from the command line arguments.
 #define argparse_init(argc, argv, ...)                                         \
   argparse_init_from_opts((argc), (argv), (argparse_init_opts_t){__VA_ARGS__})
-/** Parse a flag-style option that resolves to true if the flag is set. */
+// Parse a flag-style option that resolves to true if the flag is set.
 #define argparse_flag(parser, ...)                                             \
   argparse_flag_from_opts((parser), (argparse_argspec_t){__VA_ARGS__})
-/** Parse a string argument/option. */
+// Parse a string argument/option.
 #define argparse_str(parser, ...)                                              \
   argparse_str_from_opts((parser), (argparse_argspec_t){__VA_ARGS__})
-/** Finalize argument parsing, returning 0 if no errors occured. */
-int argparse_finish(argparse_parser_t *parser);
+// Finalize argument parsing.
+//
+// By default this will call `exit(1)` if parsing failed, or `exit(0)` if
+// --help was invoked. This can be disabled with the appropriate option.
+//
+// See `argparse_finish_from_opts` for the return value.
+#define argparse_finish(parser, ...)                                           \
+  argparse_finish_from_opts((parser), (argparse_finish_opts_t){__VA_ARGS__})
 
+///////////////////////////////////////////////////////////////////////////////
 // Backend of public API (usable if macros aren't desired).
+///////////////////////////////////////////////////////////////////////////////
+
+/// Initialize an argument parser from the command line arguments.
 argparse_parser_t argparse_init_from_opts(int argc,
                                           const char *argv[static argc],
                                           argparse_init_opts_t opts);
+/// Parse a flag-style option that resolves to true if the flag is set.
 bool argparse_flag_from_opts(argparse_parser_t *parser,
                              argparse_argspec_t opts);
+/// Parse a string argument/option.
 const char *argparse_str_from_opts(argparse_parser_t *parser,
                                    argparse_argspec_t opts);
+// Finalize argument parsing.
+//
+// - Returns `ARGPARSE_PARSE_OK` (0) if parsing was successful.
+// - Returns `ARGPARSE_HELP_INVOKED` (1) if --help was provided. In this case
+//   parsing was skipped and all args have been zero-initialized. You should
+//   exit the program if this is returned.
+// - Returns `ARGPARSE_PARSE_FAILED` (-1) if parsing failed in any way.
+//   Diagnostics have been written to stderr and you should exit the program if
+//   this was returned.
+argparse_result_t argparse_finish_from_opts(argparse_parser_t *parser,
+                                            argparse_finish_opts_t opts);
 
+///////////////////////////////////////////////////////////////////////////////
 // "Private" helper API
-static void _argparse_print_help_for_argspec(argparse_argspec_t opts);
+///////////////////////////////////////////////////////////////////////////////
 static bool _argparse_arg_matches_short_opt(const char arg[static 1],
                                             const argparse_argspec_t opts);
+void _argparse_show_help(const argparse_parser_t *parser, FILE *out);
+void _argparse_show_usage(const argparse_parser_t *parser, FILE *out);
+void _argparse_show_arguments_help(const argparse_parser_t *parser, FILE *out);
+void _argparse_show_options_help(const argparse_parser_t *parser, FILE *out);
 
 #ifdef ARGPARSE_INCLUDE_IMPLEMENTATION
 #ifndef ARGPARSE_IMPLEMENTATION_INCLUDED
@@ -104,20 +146,83 @@ argparse_parser_t argparse_init_from_opts(int argc,
   }
 
   if (!opts.no_help) {
-    if ((opts.no_args_shows_help && argc == 1) ||
-        argparse_flag(&parser, .name = "--help", .short_name = 'h')) {
+    bool help = argparse_flag(&parser, .name = "--help", .short_name = 'h',
+                              .help = "Show this help message.");
+    if (help || (opts.no_args_shows_help && argc == 1)) {
       parser.help = true;
-
-      if (opts.tagline)
-        printf("%s\n\n", opts.tagline);
-      if (opts.description)
-        printf("%s\n\n", opts.description);
-      if (opts.explicit_usage)
-        printf("Usage: %s %s\n\n", argv[0], opts.explicit_usage);
     }
   }
 
   return parser;
+}
+void _argparse_show_help(const argparse_parser_t *parser, FILE *out) {
+  if (out == NULL)
+    out = stdout;
+
+  if (parser->init_opts.tagline)
+    fprintf(out, "%s\n\n", parser->init_opts.tagline);
+  if (parser->init_opts.description)
+    fprintf(out, "%s\n\n", parser->init_opts.description);
+  if (parser->init_opts.explicit_usage)
+    fprintf(out, "Usage: %s %s\n", parser->argv[0],
+            parser->init_opts.explicit_usage);
+  else
+    _argparse_show_usage(parser, out);
+
+  fprintf(out, "\n");
+  _argparse_show_arguments_help(parser, out);
+  fprintf(out, "\n");
+  _argparse_show_options_help(parser, out);
+}
+
+void _argparse_show_usage(const argparse_parser_t *parser, FILE *out) {
+  if (out == NULL)
+    out = stdout;
+
+  fprintf(out, "Usage: %s TODO\n", parser->argv[0]);
+}
+
+void _argparse_show_arguments_help(const argparse_parser_t *parser, FILE *out) {
+  if (out == NULL)
+    out = stdout;
+
+  fprintf(out, "ARGUMENTS\n");
+  for (size_t i = 0; i < _argparse_tas_len(parser->argspecs); ++i) {
+    auto tas = parser->argspecs[i];
+    if (tas.kind != _ARGPARSE_POSITIONAL)
+      continue;
+
+    fprintf(out, "\t%s\t%s\n", tas.spec.name, tas.spec.help);
+  }
+}
+
+void _argparse_show_options_help(const argparse_parser_t *parser, FILE *out) {
+  if (out == NULL)
+    out = stdout;
+
+  if (!parser->init_opts.no_help) {
+    // Help is first option if not explicitly silenced.
+    // Move it into the last position instead.
+    auto last_ptr = _argparse_tas_last_ptr(parser->argspecs);
+    auto tmp = *last_ptr;
+    *last_ptr = parser->argspecs[0];
+    parser->argspecs[0] = tmp;
+  }
+
+  fprintf(out, "OPTIONS\n");
+  for (size_t i = 0; i < _argparse_tas_len(parser->argspecs); ++i) {
+    auto tas = parser->argspecs[i];
+    if (tas.kind == _ARGPARSE_POSITIONAL)
+      continue;
+
+    if (tas.spec.name && tas.spec.short_name)
+      fprintf(out, "\t-%c, %s\t%s\n", tas.spec.short_name, tas.spec.name,
+              tas.spec.help);
+    else if (tas.spec.short_name)
+      fprintf(out, "\t-%c\t%s\n", tas.spec.short_name, tas.spec.help);
+    else
+      fprintf(out, "\t%s\t%s\n", tas.spec.name, tas.spec.help);
+  }
 }
 
 const char *argparse_str_from_opts(argparse_parser_t *parser,
@@ -209,10 +314,11 @@ static bool _argparse_arg_matches_short_opt(const char arg[static 1],
   return false;
 }
 
-int argparse_finish(argparse_parser_t *parser) {
+argparse_result_t argparse_finish_from_opts(argparse_parser_t *parser,
+                                            argparse_finish_opts_t opts) {
   if (parser->help) {
-    free(parser->remaining_arg_uses);
-    return 1;
+    _argparse_show_help(parser, NULL);
+    goto cleanup;
   }
 
   for (size_t i = 1; i < parser->argc; ++i) {
@@ -260,14 +366,27 @@ int argparse_finish(argparse_parser_t *parser) {
     }
   }
 
+cleanup:
   free(parser->remaining_arg_uses);
   _argparse_tas_free(parser->argspecs);
-  return parser->fail ? 1 : 0;
-}
 
-static void _argparse_print_help_for_argspec(argparse_argspec_t opts) {
-  // TODO: Make this smarter depending on possible null values.
-  printf("%s, -%c\n\t%s\n", opts.name, opts.short_name, opts.help);
+  argparse_result_t result = parser->help   ? ARGPARSE_HELP_INVOKED
+                             : parser->fail ? ARGPARSE_PARSE_FAILED
+                                            : ARGPARSE_PARSE_OK;
+  switch (result) {
+  case ARGPARSE_PARSE_OK:
+    return result;
+  case ARGPARSE_HELP_INVOKED:
+    if (!opts.no_exit_on_help)
+      exit(0);
+    return ARGPARSE_HELP_INVOKED;
+  case ARGPARSE_PARSE_FAILED:
+    if (!opts.no_exit_on_failure)
+      exit(1);
+    return ARGPARSE_PARSE_FAILED;
+  default:
+    unreachable();
+  }
 }
 
 #endif

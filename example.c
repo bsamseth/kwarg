@@ -20,8 +20,7 @@ int main(int argc, const char *argv[static argc]) {
   auto fizz =
       argparse_str(&parser, .name = "fizz", .help = "Which fizz to use");
 
-  if (argparse_finish(&parser) != 0)
-    return 1;
+  argparse_finish(&parser);
 
   printf("foo-mode: %s\n", foo ? "on" : "off");
   printf("bar: %s\n", bar);
