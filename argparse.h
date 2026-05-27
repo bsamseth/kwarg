@@ -193,6 +193,7 @@ void _argparse_show_usage(const argparse_parser_t *parser, FILE *out);
 void _argparse_show_arguments_help(const argparse_parser_t *parser, FILE *out);
 void _argparse_show_options_help(const argparse_parser_t *parser, FILE *out);
 void _argparse_validate_argspec(const argparse_argspec_t opts);
+void _argparse_build_usage(const argparse_parser_t *parser, FILE *out);
 
 #ifdef ARGPARSE_INCLUDE_IMPLEMENTATION
 #ifndef ARGPARSE_IMPLEMENTATION_INCLUDED
@@ -258,7 +259,9 @@ void _argparse_show_usage(const argparse_parser_t *parser, FILE *out) {
   if (out == NULL)
     out = stdout;
 
-  fprintf(out, "Usage: %s TODO\n", parser->argv[0]);
+  fprintf(out, "Usage: %s ", parser->argv[0]);
+  _argparse_build_usage(parser, out);
+  fprintf(out, "\n");
 }
 
 void _argparse_show_arguments_help(const argparse_parser_t *parser, FILE *out) {
@@ -499,6 +502,36 @@ void _argparse_validate_argspec(const argparse_argspec_t opts) {
     _argparse_debug_dump_argspec(opts);
     fprintf(stderr, "Short names cannot use the `-` character.\n");
     exit(1);
+  }
+}
+
+void _argparse_build_usage(const argparse_parser_t *parser, FILE *out) {
+  bool first = true;
+
+  for (size_t i = 0; i < _argparse_tas_len(parser->argspecs); ++i) {
+    auto tas = parser->argspecs[i];
+    if (tas.kind == _ARGPARSE_POSITIONAL)
+      continue;
+    if (!first)
+      fputc(' ', out);
+    first = false;
+    if (!tas.spec.required)
+      fputc('[', out);
+    fputs(tas.spec.name, out);
+    if (tas.spec.short_name)
+      fprintf(out, "/-%c", tas.spec.short_name);
+    if (!tas.spec.required)
+      fputc(']', out);
+  }
+
+  for (size_t i = 0; i < _argparse_tas_len(parser->argspecs); ++i) {
+    auto tas = parser->argspecs[i];
+    if (tas.kind != _ARGPARSE_POSITIONAL)
+      continue;
+    if (!first)
+      fputc(' ', out);
+    first = false;
+    fputs(tas.spec.name, out);
   }
 }
 
