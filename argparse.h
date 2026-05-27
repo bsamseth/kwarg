@@ -40,6 +40,7 @@ typedef enum {
 //     auto-generated one.
 #define argparse_init(argc, argv, ...)                                         \
   argparse_init_from_opts((argc), (argv), (argparse_init_opts_t){__VA_ARGS__})
+
 // Parse a flag-style option that resolves to true if the flag is set.
 //
 // Optional named arguments (argparse_argspec_t):
@@ -48,6 +49,7 @@ typedef enum {
 //   - .help (const char *): Help text displayed for this flag.
 #define argparse_flag(parser, ...)                                             \
   argparse_flag_from_opts((parser), (argparse_argspec_t){__VA_ARGS__})
+
 // Parse a string argument (positional) or string option (--name=value or
 // -n value).
 //
@@ -63,6 +65,7 @@ typedef enum {
 //     options, not positional arguments).
 #define argparse_str(parser, ...)                                              \
   argparse_str_from_opts((parser), (argparse_argspec_t){__VA_ARGS__})
+
 // Finalize argument parsing.
 //
 // By default this will call `exit(1)` if parsing failed, or `exit(0)` if
@@ -289,7 +292,8 @@ void _argparse_show_arguments_help(const argparse_parser_t *parser, FILE *out) {
     if (tas.kind != _ARGPARSE_POSITIONAL)
       continue;
 
-    fprintf(out, "\t%s\t%s\n", tas.spec.name, tas.spec.help);
+    fprintf(out, "\t%s\t%s%s\n", tas.spec.name, tas.spec.help,
+            tas.spec.required ? "" : " (optional)");
   }
 }
 
@@ -313,12 +317,21 @@ void _argparse_show_options_help(const argparse_parser_t *parser, FILE *out) {
       continue;
 
     if (tas.spec.name && tas.spec.short_name)
-      fprintf(out, "\t-%c, %s\t%s\n", tas.spec.short_name, tas.spec.name,
-              tas.spec.help);
+      fprintf(out, "\t-%c, %s", tas.spec.short_name, tas.spec.name);
     else if (tas.spec.short_name)
-      fprintf(out, "\t-%c\t%s\n", tas.spec.short_name, tas.spec.help);
+      fprintf(out, "\t-%c", tas.spec.short_name);
     else
-      fprintf(out, "\t%s\t%s\n", tas.spec.name, tas.spec.help);
+      fprintf(out, "\t%s", tas.spec.name);
+
+    if (tas.kind == _ARGPARSE_OPTION) {
+      const char *p = tas.spec.name;
+      while (*p == '-')
+        p++;
+      fputc('=', out);
+      for (; *p; p++)
+        fputc(*p >= 'a' && *p <= 'z' ? *p - 32 : *p, out);
+    }
+    fprintf(out, "\t%s\n", tas.spec.help);
   }
 }
 
@@ -488,11 +501,12 @@ argparse_result_t argparse_finish_from_opts(argparse_parser_t *parser,
 
   for (size_t i = 0; i < _argparse_tas_len(parser->argspecs); ++i) {
     auto spec = parser->argspecs[i];
-    if (spec.kind == _ARGPARSE_POSITIONAL && !spec.provided_in_argv) {
+    if (spec.kind == _ARGPARSE_POSITIONAL && !spec.provided_in_argv &&
+        spec.spec.required) {
       fprintf(stderr, "Missing positional argument: %s\n", spec.spec.name);
       parser->fail = true;
-    } else if (!spec.provided_in_argv && spec.kind == _ARGPARSE_OPTION &&
-               parser->argspecs[i].spec.required) {
+    } else if (spec.kind == _ARGPARSE_OPTION && !spec.provided_in_argv &&
+               spec.spec.required) {
       fprintf(stderr, "Missing required option: %s\n", spec.spec.name);
       parser->fail = true;
     }
@@ -565,9 +579,19 @@ void _argparse_build_usage(const argparse_parser_t *parser, FILE *out) {
     first = false;
     if (!tas.spec.required)
       fputc('[', out);
-    fputs(tas.spec.name, out);
-    if (tas.spec.short_name)
-      fprintf(out, "/-%c", tas.spec.short_name);
+    if (tas.spec.short_name) {
+      fprintf(out, "-%c", tas.spec.short_name);
+    } else {
+      fputs(tas.spec.name, out);
+    }
+    if (tas.kind == _ARGPARSE_OPTION) {
+      fputc('=', out);
+      const char *p = tas.spec.name;
+      while (*p == '-')
+        p++;
+      for (; *p; p++)
+        fputc(*p >= 'a' && *p <= 'z' ? *p - 32 : *p, out);
+    }
     if (!tas.spec.required)
       fputc(']', out);
   }
@@ -579,7 +603,11 @@ void _argparse_build_usage(const argparse_parser_t *parser, FILE *out) {
     if (!first)
       fputc(' ', out);
     first = false;
+    if (!tas.spec.required)
+      fputc('[', out);
     fputs(tas.spec.name, out);
+    if (!tas.spec.required)
+      fputc(']', out);
   }
 }
 

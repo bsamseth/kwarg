@@ -16,8 +16,10 @@ int main(int argc, const char *argv[static argc]) {
                            .help = "Enable foo mode");
   auto bar = argparse_str(&parser, .name = "--bar", .short_name = 'b',
                           .required = true, .help = "What the bar?");
-  auto fizz =
-      argparse_str(&parser, .name = "fizz", .help = "Which fizz to use");
+  auto fizz = argparse_str(&parser, .name = "fizz", .required = true,
+                           .help = "Which fizz to use");
+  auto bazz = argparse_str(&parser, .name = "bazz",
+                           .help = "Which baz to use (defaults to fizz)");
 
   argparse_finish(&parser);
 
