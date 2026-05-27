@@ -9,81 +9,14 @@
 #define VECTOR_INCLUDE_IMPLEMENTATION
 #include "vector.h"
 
-// Options for argparse_init / argparse_init_from_opts.
-//
-// Members:
-//   - no_help: Disable the automatic --help/-h flag (default: false).
-//   - no_args_shows_help: Show help when no arguments are given
-//     (default: false).
-//   - tagline: Short tagline shown at the top of help output.
-//   - description: Description text shown after the tagline in help output.
-//   - explicit_usage: Custom usage string in place of the auto-generated one.
-typedef struct {
-  bool no_help;
-  bool no_args_shows_help;
-  const char *tagline;
-  const char *description;
-  const char *explicit_usage;
-} argparse_init_opts_t;
-
-// Options for argparse_finish / argparse_finish_from_opts.
-//
-// Members:
-//   - no_exit_on_failure: Return ARGPARSE_PARSE_FAILED instead of calling
-//     exit(1) (default: false).
-//   - no_exit_on_help: Return ARGPARSE_HELP_INVOKED instead of calling exit(0)
-//     (default: false).
-typedef struct {
-  bool no_exit_on_failure;
-  bool no_exit_on_help;
-} argparse_finish_opts_t;
-
-// Options for argparse_flag / argparse_str and their _from_opts backends.
-//
-// Members:
-//   - name: Long name (e.g. "--verbose", "--output"). A name beginning with
-//     "--" makes this an option; otherwise it is a positional argument.
-//     This parameter _must_ be provided.
-//   - short_name: Single-character short form (e.g. 'v', 'o'). Should only be
-//     set if `.name` has two leading `-`, as otherwise it is ambiguous whether
-//     or not this is a positional argument or an option.
-//   - help: Help text displayed for this argument.
-//   - required: Mark this option as required (only meaningful for
-//     options, it is ignored for flags and positional arguments).
-//
-// NB: Do not set `-foo` as the name, using a single leading `-`. This will
-// trigger an assertion, because it would be parsed as the joined form of
-// `-f -o -o`, and would not work the way you want.
-typedef struct {
-  char *name;
-  char short_name;
-  char *help;
-  bool required;
-} argparse_argspec_t;
-
-typedef enum {
-  _ARGPARSE_POSITIONAL,
-  _ARGPARSE_OPTION,
-  _ARGPARSE_FLAG,
-} _argparse_arg_kind_t;
-
-typedef struct {
-  _argparse_arg_kind_t kind;
-  argparse_argspec_t spec;
-  bool provided_in_argv;
-} _argparse_tagged_argspec_t;
-VECTOR_IMPL(_argparse_tagged_argspec_t, _argparse_tas) // "[t]ag [a]rg [s]pecs
-
-typedef struct {
-  const size_t argc;
-  const char **argv;
-  _argparse_tas argspecs;
-  int16_t *remaining_arg_uses;
-  argparse_init_opts_t init_opts;
-  bool fail;
-  bool help;
-} argparse_parser_t;
-
+struct argparse_init_opts_t;
+struct argparse_parser_t;
+struct argparse_argspec_t;
+struct argparse_finish_opts_t;
+typedef struct argparse_init_opts_t argparse_init_opts_t;
+typedef struct argparse_parser_t argparse_parser_t;
+typedef struct argparse_argspec_t argparse_argspec_t;
+typedef struct argparse_finish_opts_t argparse_finish_opts_t;
 typedef enum {
   ARGPARSE_PARSE_OK,
   ARGPARSE_HELP_INVOKED,
@@ -146,7 +79,7 @@ typedef enum {
   argparse_finish_from_opts((parser), (argparse_finish_opts_t){__VA_ARGS__})
 
 ///////////////////////////////////////////////////////////////////////////////
-// Backend of public API (usable if macros aren't desired).
+// Backend of public API (usable if you don't want macros).
 ///////////////////////////////////////////////////////////////////////////////
 
 /// Initialize an argument parser from the command line arguments.
@@ -182,6 +115,86 @@ const char *argparse_str_from_opts(argparse_parser_t *parser,
 // See argparse_finish_opts_t for available options.
 argparse_result_t argparse_finish_from_opts(argparse_parser_t *parser,
                                             argparse_finish_opts_t opts);
+
+///////////////////////////////////////////////////////////////////////////////
+// Structures
+///////////////////////////////////////////////////////////////////////////////
+
+// Options for argparse_init / argparse_init_from_opts.
+//
+// Members:
+//   - no_help: Disable the automatic --help/-h flag (default: false).
+//   - no_args_shows_help: Show help when no arguments are given
+//     (default: false).
+//   - tagline: Short tagline shown at the top of help output.
+//   - description: Description text shown after the tagline in help output.
+//   - explicit_usage: Custom usage string in place of the auto-generated one.
+struct argparse_init_opts_t {
+  bool no_help;
+  bool no_args_shows_help;
+  const char *tagline;
+  const char *description;
+  const char *explicit_usage;
+};
+
+// Options for argparse_finish / argparse_finish_from_opts.
+//
+// Members:
+//   - no_exit_on_failure: Return ARGPARSE_PARSE_FAILED instead of calling
+//     exit(1) (default: false).
+//   - no_exit_on_help: Return ARGPARSE_HELP_INVOKED instead of calling exit(0)
+//     (default: false).
+struct argparse_finish_opts_t {
+  bool no_exit_on_failure;
+  bool no_exit_on_help;
+};
+
+// Options for argparse_flag / argparse_str and their _from_opts backends.
+//
+// Members:
+//   - name: Long name (e.g. "--verbose", "--output"). A name beginning with
+//     "--" makes this an option; otherwise it is a positional argument.
+//     This parameter _must_ be provided.
+//   - short_name: Single-character short form (e.g. 'v', 'o'). Should only be
+//     set if `.name` has two leading `-`, as otherwise it is ambiguous whether
+//     or not this is a positional argument or an option.
+//   - help: Help text displayed for this argument.
+//   - required: Mark this option as required (only meaningful for
+//     options, it is ignored for flags and positional arguments).
+//
+// NB: Do not set `-foo` as the name, using a single leading `-`. This will
+// trigger an assertion, because it would be parsed as the joined form of
+// `-f -o -o`, and would not work the way you want.
+struct argparse_argspec_t {
+  char *name;
+  char short_name;
+  char *help;
+  bool required;
+};
+
+enum _argparse_arg_kind_t {
+  _ARGPARSE_POSITIONAL,
+  _ARGPARSE_OPTION,
+  _ARGPARSE_FLAG,
+};
+
+typedef struct {
+  enum _argparse_arg_kind_t kind;
+  argparse_argspec_t spec;
+  bool provided_in_argv;
+} _argparse_tagged_argspec_t;
+VECTOR_IMPL(_argparse_tagged_argspec_t,
+            _argparse_tas) // "[t]ag [a]rg [s]pecs
+
+struct argparse_parser_t {
+  const size_t argc;
+  const char **argv;
+  _argparse_tas argspecs;
+  int16_t *remaining_arg_uses;
+  argparse_init_opts_t init_opts;
+  bool fail;
+  bool help;
+};
 
 ///////////////////////////////////////////////////////////////////////////////
 // "Private" helper API
@@ -537,3 +550,15 @@ void _argparse_build_usage(const argparse_parser_t *parser, FILE *out) {
 
 #endif
 #endif
+
+// Prompt to generate man pages:
+// Look at argparse.h. Don't consider any other files. It contains a command
+// line argument parsing library. Please generate man-pages placed in
+// `docs/man/man3/` with man-pages describing the public API of the library.
+// Write it in the same style as the Linux libc man pages. I think there should
+// be one page for `argparse_init`, one page for `argparse_finish`, one joint
+// page for `argparse_flag`/`argparse_str`, and finally one page for `argparse`
+// with an overview, explanation and examples. Each of the pages describing
+// functions should include the "backend" functions as well as the
+// function-like macros, e.g. the man page for `argparse_init` also documents
+// `argparse_init_from_opts`.
