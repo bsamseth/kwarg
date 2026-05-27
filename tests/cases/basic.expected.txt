@@ -1,0 +1,9 @@
+Usage: tests/cases/basic [-h] [-v] [-o=OUTPUT] [input]
+
+ARGUMENTS
+	input	Input file (optional)
+
+OPTIONS
+	-v, --verbose	Enable verbose output
+	-o, --output=OUTPUT	Output file
+	-h, --help	Show this help message.
