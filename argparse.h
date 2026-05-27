@@ -199,8 +199,8 @@ struct argparse_parser_t {
 ///////////////////////////////////////////////////////////////////////////////
 // "Private" helper API
 ///////////////////////////////////////////////////////////////////////////////
-static bool _argparse_arg_matches_short_opt(const char arg[static 1],
-                                            const argparse_argspec_t opts);
+static size_t _argparse_arg_matches_short_opt(const char arg[static 1],
+                                              const argparse_argspec_t opts);
 void _argparse_show_help(const argparse_parser_t *parser, FILE *out);
 void _argparse_show_usage(const argparse_parser_t *parser, FILE *out);
 void _argparse_show_arguments_help(const argparse_parser_t *parser, FILE *out);
@@ -233,7 +233,9 @@ argparse_parser_t argparse_init_from_opts(int argc,
     if (arg[0] != '-' || arg[1] == '-') {
       parser.remaining_arg_uses[i] = 1;
     } else {
-      parser.remaining_arg_uses[i] = strlen(arg) - 1;
+      for (size_t j = 1; arg[j] != '\0' && arg[j] != '=';
+           ++j, ++parser.remaining_arg_uses[i])
+        ;
     }
   }
 
@@ -341,21 +343,54 @@ const char *argparse_str_from_opts(argparse_parser_t *parser,
       user_provided_argument = parser->argv[i];
       break;
     } else { // arg is option
-      if (!strcmp(arg, opts.name) ||
-          _argparse_arg_matches_short_opt(arg, opts)) {
+      size_t name_len = strlen(opts.name);
+
+      // Short-form argument matching:
+      size_t short_idx = _argparse_arg_matches_short_opt(arg, opts);
+      if (short_idx && arg[short_idx + 1] == '=') {
         parser->remaining_arg_uses[i]--;
-
-        if (i == parser->argc - 1) {
-          parser->fail = true;
-          fprintf(stderr, "Missing argument to %s (-%c)\n", opts.name,
-                  opts.short_name);
-          break;
-        }
-        parser->remaining_arg_uses[i + 1] = 0;
-
-        user_provided_argument = parser->argv[i + 1];
+        user_provided_argument = arg + short_idx + 2;
+        break;
+      } else if (short_idx == strlen(arg) - 1) {
+        parser->remaining_arg_uses[i]--;
+        goto consume_next_arg_as_value;
+      } else if (short_idx) {
+        parser->fail = true;
+        parser->remaining_arg_uses[i]--;
+        fprintf(stderr,
+                "Option -%c expects a value and must be the last argument in "
+                "the group: %s\n",
+                opts.short_name, arg);
         break;
       }
+
+      bool long_name_eq_match =
+          !strncmp(arg, opts.name, name_len) && arg[name_len] == '=';
+      if (long_name_eq_match) {
+        parser->remaining_arg_uses[i] = 0;
+        user_provided_argument = arg + name_len + 1;
+        break;
+      }
+
+      if (!strcmp(arg, opts.name)) {
+        parser->remaining_arg_uses[i] = 0;
+        goto consume_next_arg_as_value;
+      }
+
+    consume_next_arg_as_value:
+      // At this point, we matched either long form or short form, expecting the
+      // next argument to be the value.
+      //
+      if (i == parser->argc - 1) {
+        parser->fail = true;
+        fprintf(stderr, "Missing argument to %s (-%c)\n", opts.name,
+                opts.short_name);
+        break;
+      }
+      parser->remaining_arg_uses[i + 1] = 0;
+
+      user_provided_argument = parser->argv[i + 1];
+      break;
     }
   }
 
@@ -397,18 +432,18 @@ bool argparse_flag_from_opts(argparse_parser_t *parser,
   return flag_set;
 }
 
-static bool _argparse_arg_matches_short_opt(const char arg[static 1],
-                                            const argparse_argspec_t opts) {
+static size_t _argparse_arg_matches_short_opt(const char arg[static 1],
+                                              const argparse_argspec_t opts) {
   // Skip positional arguments and long-form options.
   if (arg[0] != '-' || arg[1] == '-')
-    return false;
+    return 0;
 
   const size_t n_opts = strlen(arg);
   for (size_t i = 1; i < n_opts; ++i) {
     if (arg[i] == opts.short_name)
-      return true;
+      return i;
   }
-  return false;
+  return 0;
 }
 
 argparse_result_t argparse_finish_from_opts(argparse_parser_t *parser,
@@ -430,9 +465,9 @@ argparse_result_t argparse_finish_from_opts(argparse_parser_t *parser,
       }
 
       // Unexpected short-form option.
-      // We make sure to only output diagnostics for the short-form options that
-      // aren't defined, in case of joined options like `-abc`. If `-a` is
-      // defined, then diagnostics are only emitted for `-b` and `-c`.
+      // We make sure to only output diagnostics for the short-form options
+      // that aren't defined, in case of joined options like `-abc`. If `-a`
+      // is defined, then diagnostics are only emitted for `-b` and `-c`.
       for (const char *opt = parser->argv[i] + 1; *opt; ++opt) {
         bool opt_is_defined = false;
         for (size_t j = 0; j < _argparse_tas_len(parser->argspecs); ++j) {
@@ -510,10 +545,10 @@ void _argparse_validate_argspec(const argparse_argspec_t opts) {
             "not start with a `-` or start with `--`.\n");
     exit(1);
   }
-  if (opts.short_name == '-') {
+  if (opts.short_name == '-' || opts.short_name == '=') {
     fprintf(stderr, "Invalid specification:\n");
     _argparse_debug_dump_argspec(opts);
-    fprintf(stderr, "Short names cannot use the `-` character.\n");
+    fprintf(stderr, "Short names cannot use the `-` or '=' characters.\n");
     exit(1);
   }
 }
@@ -555,10 +590,10 @@ void _argparse_build_usage(const argparse_parser_t *parser, FILE *out) {
 // Look at argparse.h. Don't consider any other files. It contains a command
 // line argument parsing library. Please generate man-pages placed in
 // `docs/man/man3/` with man-pages describing the public API of the library.
-// Write it in the same style as the Linux libc man pages. I think there should
-// be one page for `argparse_init`, one page for `argparse_finish`, one joint
-// page for `argparse_flag`/`argparse_str`, and finally one page for `argparse`
-// with an overview, explanation and examples. Each of the pages describing
-// functions should include the "backend" functions as well as the
+// Write it in the same style as the Linux libc man pages. I think there
+// should be one page for `argparse_init`, one page for `argparse_finish`, one
+// joint page for `argparse_flag`/`argparse_str`, and finally one page for
+// `argparse` with an overview, explanation and examples. Each of the pages
+// describing functions should include the "backend" functions as well as the
 // function-like macros, e.g. the man page for `argparse_init` also documents
 // `argparse_init_from_opts`.
