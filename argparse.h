@@ -513,6 +513,9 @@ argparse_result_t argparse_finish_from_opts(argparse_parser_t *parser,
   }
 
 cleanup:
+  if (!parser->help && parser->fail) {
+    _argparse_show_usage(parser, stderr);
+  }
   free(parser->remaining_arg_uses);
   _argparse_tas_free(parser->argspecs);
 
