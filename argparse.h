@@ -341,8 +341,7 @@ const char *argparse_str_from_opts(argparse_parser_t *parser,
   bool is_option = opts.short_name || !strncmp(opts.name, "-", 1);
   const char *user_provided_argument = NULL;
 
-  // If --help was provided, skip parsing.
-  for (size_t i = 1; !parser->help && i < parser->argc; ++i) {
+  for (size_t i = 1; i < parser->argc; ++i) {
     if (parser->remaining_arg_uses[i] <= 0)
       continue;
 
@@ -420,7 +419,7 @@ bool argparse_flag_from_opts(argparse_parser_t *parser,
                              argparse_argspec_t opts) {
   _argparse_validate_argspec(opts);
   bool flag_set = false;
-  for (size_t i = 1; !parser->help && i < parser->argc; ++i) {
+  for (size_t i = 1; i < parser->argc; ++i) {
     if (parser->remaining_arg_uses[i] <= 0)
       continue;
 
