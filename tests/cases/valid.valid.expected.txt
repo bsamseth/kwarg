@@ -1,0 +1,1 @@
+OK: verbose=1 quiet=1 output=out.txt format=json name=Alice input=file.txt

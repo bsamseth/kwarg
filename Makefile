@@ -1,36 +1,25 @@
 CFLAGS := -Wall -Wextra -Wpedantic -std=c23
 
-TEST_CASES := tests/cases/basic tests/cases/required tests/cases/long_only
-
 run: example
 	./example --help
 
 example: example.c argparse.h
 	${CC} ${CFLAGS} -g $< -o $@
 
-test: testmain
-	./testmain
+subcommand_example: subcommand_example.c argparse.h
+	${CC} ${CFLAGS} -g $< -o $@
 
-valgrind: testmain
-	valgrind ./testmain
+test:
+	$(MAKE) -C tests test
 
-tests/cases/%: tests/cases/%.c argparse.h
-	${CC} ${CFLAGS} -I. $< -o $@
+valgrind:
+	$(MAKE) -C tests valgrind
 
-testmain: testmain.c unity.h unity_internals.h unity.c $(TEST_CASES) $(wildcard tests/cases/*.expected.txt)
-	${CC} ${CFLAGS} -g testmain.c unity.c -o $@
-
-UPDATE_TARGETS := $(addprefix update-expected/,$(notdir $(TEST_CASES)))
-
-update-expected: $(UPDATE_TARGETS)
-	@echo "Updated expected output for all test cases"
-
-update-expected/%: tests/cases/%
-	"$<" --help 2>&1 > "$<.expected.txt"
-	@echo "Updated $<.expected.txt"
+update-expected:
+	$(MAKE) -C tests update-expected
 
 clean:
-	rm -fv testmain example $(TEST_CASES)
+	$(MAKE) -C tests clean
+	rm -fv example subcommand_example
 
-.PHONY: clean update-expected
-
+.PHONY: test valgrind update-expected clean run

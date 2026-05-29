@@ -1,0 +1,8 @@
+Invalid specification:
+{
+	.name = "--opt",
+	.short_name = '=',
+	.required = false,
+	.help = "bad short"
+}
+Short names cannot use the `-` or '=' characters.

@@ -1,8 +1,0 @@
-Usage: tests/cases/required [-h] -n=NAME [file]
-
-ARGUMENTS
-	file	File to process (optional)
-
-OPTIONS
-	-n, --name=NAME	Your name
-	-h, --help	Show this help message.

@@ -1,0 +1,8 @@
+Invalid specification:
+{
+	.name = "(null)",
+	.short_name = 'x',
+	.required = false,
+	.help = "missing name"
+}
+You must specify the .name field for any options/flags.

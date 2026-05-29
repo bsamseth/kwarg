@@ -1,9 +1,0 @@
-Usage: tests/cases/long_only [-h] [--verbose] [--output=OUTPUT] [src]
-
-ARGUMENTS
-	src	Source path (optional)
-
-OPTIONS
-	--verbose	Verbose mode
-	--output=OUTPUT	Output path
-	-h, --help	Show this help message.

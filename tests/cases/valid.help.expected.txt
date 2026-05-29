@@ -1,0 +1,12 @@
+Usage: cases/valid [-h] [-v] [--quiet] [-o=OUTPUT] [--format=FORMAT] -n=NAME [input]
+
+ARGUMENTS
+	input	Input file (optional)
+
+OPTIONS
+	-v, --verbose	Enable verbose output
+	--quiet	Suppress output
+	-o, --output=OUTPUT	Output file
+	--format=FORMAT	Output format
+	-n, --name=NAME	Your name
+	-h, --help	Show this help message.
