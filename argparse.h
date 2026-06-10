@@ -236,9 +236,9 @@ argparse_parser_t argparse_init_from_opts(int argc,
     if (arg[0] != '-' || arg[1] == '-') {
       parser.remaining_arg_uses[i] = 1;
     } else {
-      for (size_t j = 1; arg[j] != '\0' && arg[j] != '=';
-           ++j, ++parser.remaining_arg_uses[i])
-        ;
+      for (size_t j = 1; arg[j] != '\0' && arg[j] != '='; ++j) {
+        ++parser.remaining_arg_uses[i];
+      }
     }
   }
 
@@ -344,7 +344,6 @@ const char *argparse_str_from_opts(argparse_parser_t *parser,
   for (size_t i = 1; i < parser->argc; ++i) {
     if (parser->remaining_arg_uses[i] <= 0)
       continue;
-
     const char *arg = parser->argv[i];
     bool arg_is_option = arg[0] == '-';
 
@@ -451,7 +450,7 @@ static size_t _argparse_arg_matches_short_opt(const char arg[static 1],
     return 0;
 
   const size_t n_opts = strlen(arg);
-  for (size_t i = 1; i < n_opts; ++i) {
+  for (size_t i = 1; i < n_opts && arg[i] != '='; ++i) {
     if (arg[i] == opts.short_name)
       return i;
   }
