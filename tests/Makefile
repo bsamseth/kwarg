@@ -1,6 +1,6 @@
 CFLAGS := -Wall -Wextra -Wpedantic -std=c23
 
-TEST_CASES := cases/valid cases/invalid
+TEST_CASES := cases/valid cases/invalid cases/usage
 
 run: test
 

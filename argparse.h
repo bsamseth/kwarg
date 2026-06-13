@@ -393,6 +393,8 @@ const char *argparse_str_from_opts(argparse_parser_t *parser,
         goto consume_next_arg_as_value;
       }
 
+      continue;
+
     consume_next_arg_as_value:
       // At this point, we matched either long form or short form, expecting the
       // next argument to be the value.

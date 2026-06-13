@@ -95,11 +95,13 @@ static void run_case(const char *name) {
 
 static void test_valid(void) { run_case("valid"); }
 static void test_invalid(void) { run_case("invalid"); }
+static void test_usage(void) { run_case("usage"); }
 
 int main(void) {
   UNITY_BEGIN();
   RUN_TEST(test_valid);
   RUN_TEST(test_invalid);
+  RUN_TEST(test_usage);
   return UNITY_END();
 }
 

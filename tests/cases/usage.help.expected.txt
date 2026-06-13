@@ -1,0 +1,14 @@
+Usage: cases/usage [-habc] [--verbose] [-o=OUTPUT] [--format=FORMAT] -n=NAME [FILE]
+
+ARGUMENTS
+	FILE	Input file (optional)
+
+OPTIONS
+	-a, --alpha	Alpha flag
+	-b, --beta	Beta flag
+	-c, --gamma	Gamma flag
+	--verbose	Verbose output
+	-o, --output=OUTPUT	Output file
+	--format=FORMAT	Output format
+	-n, --name=NAME	Your name
+	-h, --help	Show this help message.
