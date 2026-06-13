@@ -1,1 +1,2 @@
-OK: verbose=1 quiet=1 output=out.txt format=json name=Alice input=file.txt
+Error: Missing required option: --name
+Usage: cases/valid [-hv] [--quiet] [-o=OUTPUT] [--format=FORMAT] -n=NAME [input]

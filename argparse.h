@@ -41,7 +41,7 @@ typedef enum {
 #define argparse_init(argc, argv, ...)                                         \
   argparse_init_from_opts((argc), (argv), (argparse_init_opts_t){__VA_ARGS__})
 
-// Parse a flag-style option that resolves to true if the flag is set.
+// Parse a flag-style option that returns how many times the flag was provided.
 //
 // Optional named arguments (argparse_argspec_t):
 //   - .name (const char *): Long flag name, e.g. "--verbose".
@@ -91,11 +91,11 @@ typedef enum {
 argparse_parser_t argparse_init_from_opts(int argc,
                                           const char *argv[static argc],
                                           argparse_init_opts_t opts);
-/// Parse a flag-style option that resolves to true if the flag is set.
+// Parse a flag-style option that returns how many times the flag was provided.
 ///
 /// See argparse_argspec_t for available options.
-bool argparse_flag_from_opts(argparse_parser_t *parser,
-                             argparse_argspec_t opts);
+unsigned argparse_flag_from_opts(argparse_parser_t *parser,
+                                 argparse_argspec_t opts);
 /// Parse a string argument (positional) or string option (--name=value or
 /// -n value).
 ///
@@ -184,7 +184,7 @@ enum _argparse_arg_kind_t {
 typedef struct {
   enum _argparse_arg_kind_t kind;
   argparse_argspec_t spec;
-  bool provided_in_argv;
+  int provided_in_argv;
 } _argparse_tagged_argspec_t;
 VECTOR_IMPL(_argparse_tagged_argspec_t,
             _argparse_tas) // "[t]ag [a]rg [s]pecs
@@ -340,6 +340,7 @@ const char *argparse_str_from_opts(argparse_parser_t *parser,
   _argparse_validate_argspec(opts);
   bool is_option = opts.short_name || !strncmp(opts.name, "-", 1);
   const char *user_provided_argument = NULL;
+  int provided_count = 0;
 
   for (size_t i = 1; i < parser->argc; ++i) {
     if (parser->remaining_arg_uses[i] <= 0)
@@ -352,7 +353,8 @@ const char *argparse_str_from_opts(argparse_parser_t *parser,
     else if (!arg_is_option) {
       parser->remaining_arg_uses[i] = 0;
       user_provided_argument = parser->argv[i];
-      break;
+      provided_count++;
+      continue;
     } else { // arg is option
       size_t name_len = strlen(opts.name);
 
@@ -361,7 +363,8 @@ const char *argparse_str_from_opts(argparse_parser_t *parser,
       if (short_idx && arg[short_idx + 1] == '=') {
         parser->remaining_arg_uses[i]--;
         user_provided_argument = arg + short_idx + 2;
-        break;
+        provided_count++;
+        continue;
       } else if (short_idx == strlen(arg) - 1) {
         parser->remaining_arg_uses[i]--;
         goto consume_next_arg_as_value;
@@ -369,10 +372,11 @@ const char *argparse_str_from_opts(argparse_parser_t *parser,
         parser->fail = true;
         parser->remaining_arg_uses[i]--;
         fprintf(stderr,
-                "Option -%c expects a value and must be the last argument in "
-                "the group: %s\n",
-                opts.short_name, arg);
-        break;
+                "Error: %s: Option -%c expects a value and must be the last "
+                "argument in "
+                "the group.\n",
+                arg, opts.short_name);
+        continue;
       }
 
       bool long_name_eq_match =
@@ -380,7 +384,8 @@ const char *argparse_str_from_opts(argparse_parser_t *parser,
       if (long_name_eq_match) {
         parser->remaining_arg_uses[i] = 0;
         user_provided_argument = arg + name_len + 1;
-        break;
+        provided_count++;
+        continue;
       }
 
       if (!strcmp(arg, opts.name)) {
@@ -394,30 +399,31 @@ const char *argparse_str_from_opts(argparse_parser_t *parser,
       //
       if (i == parser->argc - 1) {
         parser->fail = true;
-        fprintf(stderr, "Missing argument to %s (-%c)\n", opts.name,
-                opts.short_name);
-        break;
+        fprintf(stderr, "Error: %s: Missing value to %s (-%c)\n", arg,
+                opts.name, opts.short_name);
+        continue;
       }
       parser->remaining_arg_uses[i + 1] = 0;
 
       user_provided_argument = parser->argv[i + 1];
-      break;
+      provided_count++;
+      continue;
     }
   }
 
   _argparse_tas_push(
       &parser->argspecs,
-      (_argparse_tagged_argspec_t){
-          .kind = is_option ? _ARGPARSE_OPTION : _ARGPARSE_POSITIONAL,
-          .spec = opts,
-          .provided_in_argv = user_provided_argument != NULL});
+      (_argparse_tagged_argspec_t){.kind = is_option ? _ARGPARSE_OPTION
+                                                     : _ARGPARSE_POSITIONAL,
+                                   .spec = opts,
+                                   .provided_in_argv = provided_count});
   return user_provided_argument;
 }
 
-bool argparse_flag_from_opts(argparse_parser_t *parser,
-                             argparse_argspec_t opts) {
+unsigned argparse_flag_from_opts(argparse_parser_t *parser,
+                                 argparse_argspec_t opts) {
   _argparse_validate_argspec(opts);
-  bool flag_set = false;
+  unsigned flag_set = 0;
   for (size_t i = 1; i < parser->argc; ++i) {
     if (parser->remaining_arg_uses[i] <= 0)
       continue;
@@ -426,13 +432,29 @@ bool argparse_flag_from_opts(argparse_parser_t *parser,
 
     if (!strcmp(arg, opts.name)) {
       parser->remaining_arg_uses[i] = 0;
-      flag_set = true;
-      break;
+      flag_set++;
+      continue;
     }
-    if (_argparse_arg_matches_short_opt(arg, opts)) {
+
+    if (arg[0] != '-' || arg[1] == '-')
+      continue;
+
+    for (size_t j = 1; arg[j] && arg[j] != '='; ++j) {
+      if (arg[j] != opts.short_name)
+        continue;
+
+      if (arg[j + 1] == '=') {
+        fprintf(stderr,
+                "Error: %s: Unexpected value for flag -%c. Flags are boolean "
+                "and don't "
+                "take a value.\n",
+                arg, opts.short_name);
+        parser->fail = true;
+        break;
+      }
+
       parser->remaining_arg_uses[i]--;
-      flag_set = true;
-      break;
+      flag_set++;
     }
   }
 
@@ -479,7 +501,7 @@ argparse_result_t argparse_finish_from_opts(argparse_parser_t *parser,
       // We make sure to only output diagnostics for the short-form options
       // that aren't defined, in case of joined options like `-abc`. If `-a`
       // is defined, then diagnostics are only emitted for `-b` and `-c`.
-      for (const char *opt = parser->argv[i] + 1; *opt; ++opt) {
+      for (const char *opt = parser->argv[i] + 1; *opt && *opt != '='; ++opt) {
         bool opt_is_defined = false;
         for (size_t j = 0; j < _argparse_tas_len(parser->argspecs); ++j) {
           auto spec = parser->argspecs[j];
@@ -489,7 +511,8 @@ argparse_result_t argparse_finish_from_opts(argparse_parser_t *parser,
           }
         }
         if (!opt_is_defined) {
-          fprintf(stderr, "Unexpected argument: -%c\n", *opt);
+          fprintf(stderr, "Unknown short option '%c' in argument \"%s\"\n",
+                  *opt, arg);
           if (--parser->remaining_arg_uses[i] == 0)
             break;
         }
@@ -501,11 +524,12 @@ argparse_result_t argparse_finish_from_opts(argparse_parser_t *parser,
     auto spec = parser->argspecs[i];
     if (spec.kind == _ARGPARSE_POSITIONAL && !spec.provided_in_argv &&
         spec.spec.required) {
-      fprintf(stderr, "Missing positional argument: %s\n", spec.spec.name);
+      fprintf(stderr, "Error: Missing positional argument: %s\n",
+              spec.spec.name);
       parser->fail = true;
     } else if (spec.kind == _ARGPARSE_OPTION && !spec.provided_in_argv &&
                spec.spec.required) {
-      fprintf(stderr, "Missing required option: %s\n", spec.spec.name);
+      fprintf(stderr, "Error: Missing required option: %s\n", spec.spec.name);
       parser->fail = true;
     }
   }
@@ -571,9 +595,61 @@ void _argparse_validate_argspec(const argparse_argspec_t opts) {
 void _argparse_build_usage(const argparse_parser_t *parser, FILE *out) {
   bool first = true;
 
+  // Flags with short_names, grouped together: e.g. [-abchv]
+  {
+    size_t n = 0;
+    bool any_optional = false;
+    for (size_t i = 0; i < _argparse_tas_len(parser->argspecs); ++i) {
+      auto tas = parser->argspecs[i];
+      if (tas.kind != _ARGPARSE_FLAG)
+        continue;
+      if (!tas.spec.short_name)
+        continue;
+      n++;
+      if (!tas.spec.required)
+        any_optional = true;
+    }
+    if (n > 0) {
+      if (!first)
+        fputc(' ', out);
+      first = false;
+      if (any_optional)
+        fputc('[', out);
+      fputc('-', out);
+      for (size_t i = 0; i < _argparse_tas_len(parser->argspecs); ++i) {
+        auto tas = parser->argspecs[i];
+        if (tas.kind != _ARGPARSE_FLAG)
+          continue;
+        if (!tas.spec.short_name)
+          continue;
+        fputc(tas.spec.short_name, out);
+      }
+      if (any_optional)
+        fputc(']', out);
+    }
+  }
+
+  // Long-only flags (no short_name): printed individually
   for (size_t i = 0; i < _argparse_tas_len(parser->argspecs); ++i) {
     auto tas = parser->argspecs[i];
-    if (tas.kind == _ARGPARSE_POSITIONAL)
+    if (tas.kind != _ARGPARSE_FLAG)
+      continue;
+    if (tas.spec.short_name)
+      continue;
+    if (!first)
+      fputc(' ', out);
+    first = false;
+    if (!tas.spec.required)
+      fputc('[', out);
+    fputs(tas.spec.name, out);
+    if (!tas.spec.required)
+      fputc(']', out);
+  }
+
+  // Non-flag options (take a value): printed individually
+  for (size_t i = 0; i < _argparse_tas_len(parser->argspecs); ++i) {
+    auto tas = parser->argspecs[i];
+    if (tas.kind != _ARGPARSE_OPTION)
       continue;
     if (!first)
       fputc(' ', out);
@@ -585,18 +661,17 @@ void _argparse_build_usage(const argparse_parser_t *parser, FILE *out) {
     } else {
       fputs(tas.spec.name, out);
     }
-    if (tas.kind == _ARGPARSE_OPTION) {
-      fputc('=', out);
-      const char *p = tas.spec.name;
-      while (*p == '-')
-        p++;
-      for (; *p; p++)
-        fputc(*p >= 'a' && *p <= 'z' ? *p - 32 : *p, out);
-    }
+    fputc('=', out);
+    const char *p = tas.spec.name;
+    while (*p == '-')
+      p++;
+    for (; *p; p++)
+      fputc(*p >= 'a' && *p <= 'z' ? *p - 32 : *p, out);
     if (!tas.spec.required)
       fputc(']', out);
   }
 
+  // Positional arguments
   for (size_t i = 0; i < _argparse_tas_len(parser->argspecs); ++i) {
     auto tas = parser->argspecs[i];
     if (tas.kind != _ARGPARSE_POSITIONAL)
@@ -619,7 +694,7 @@ void _argparse_build_usage(const argparse_parser_t *parser, FILE *out) {
 // Look at argparse.h. Don't consider any other files. It contains a command
 // line argument parsing library. Please generate man-pages placed in
 // `docs/man/man3/` with man-pages describing the public API of the library.
-// Write it in the same style as the Linux libc man pages. I think there
+// Write it in the same style as the Linux libc man pages. There
 // should be one page for `argparse_init`, one page for `argparse_finish`, one
 // joint page for `argparse_flag`/`argparse_str`, and finally one page for
 // `argparse` with an overview, explanation and examples. Each of the pages

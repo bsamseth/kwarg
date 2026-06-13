@@ -1,4 +1,4 @@
-Usage: cases/valid [-h] [-v] [--quiet] [-o=OUTPUT] [--format=FORMAT] -n=NAME [input]
+Usage: cases/valid [-hv] [--quiet] [-o=OUTPUT] [--format=FORMAT] -n=NAME [input]
 
 ARGUMENTS
 	input	Input file (optional)

@@ -1,3 +1,3 @@
-Missing argument to --output (-o)
-Missing required option: --name
-Usage: cases/valid [-h] [-v] [--quiet] [-o=OUTPUT] [--format=FORMAT] -n=NAME [input]
+Error: --output: Missing value to --output (-o)
+Error: Missing required option: --name
+Usage: cases/valid [-hv] [--quiet] [-o=OUTPUT] [--format=FORMAT] -n=NAME [input]

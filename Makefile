@@ -6,9 +6,6 @@ run: example
 example: example.c argparse.h
 	${CC} ${CFLAGS} -g $< -o $@
 
-subcommand_example: subcommand_example.c argparse.h
-	${CC} ${CFLAGS} -g $< -o $@
-
 test:
 	$(MAKE) -C tests test
 
