@@ -1,0 +1,94 @@
+= argparse_str(3)
+:doctype: manpage
+:man source: argparse
+:man manual: argparse - command line argument parsing
+
+== NAME
+
+argparse_str, argparse_str_from_opts - register a string option or
+positional argument
+
+== SYNOPSIS
+
+[source,c]
+----
+#include <argparse.h>
+
+const char *argparse_str(argparse_parser_t *parser, ...);
+
+const char *argparse_str_from_opts(argparse_parser_t *parser,
+    argparse_argspec_t opts);
+----
+
+== DESCRIPTION
+
+*argparse_str*() registers a string-valued argument. If *name* starts
+with *--* or a *short_name* is given, it is treated as an option
+(taking a value); otherwise it is a positional argument. The macro
+wrapper accepts optional named fields; the backend takes an explicit
+*argparse_argspec_t*.
+
+*argparse_argspec_t* members:
+
+*name*:: *const char** (mandatory).
+  Long option name e.g. *--output*, or positional name e.g. *FILE*.
+  Leading *--* makes it an option; no dash means positional.
+  Single-dash names assert.
+*short_name*:: *char*.
+  Single char, e.g. 'o'. '-' and '=' not permitted.
+*help*:: *const char**.
+  Help text.
+*required*:: *bool* (default false).
+  For options and positional args.
+
+=== String option syntax
+
+*--name=value*, *--name value*, *-n value*. Value-taking short opt
+must be last in a group: *-abc* where *-c* takes value consumes the
+next word.
+
+=== Positional
+
+*name* without leading dash matches next non-option word.
+
+== RETURN VALUE
+
+Returns a pointer to the value string, or NULL if not provided.
+The pointer is into *argv* and must not be freed.
+
+== ERRORS
+
+[source]
+----
+name == NULL              -> exit(1)
+name starts with "-"      -> exit(1)
+short_name is '-' or '='  -> exit(1)
+----
+
+== EXAMPLES
+
+[source,c]
+----
+const char *n = argparse_str(&p,
+    .name = "--name", .short_name = 'n',
+    .help = "Name to greet.", .required = true);
+
+const char *f = argparse_str(&p,
+    .name = "FILE", .help = "Input file.");
+----
+
+Backend form:
+
+[source,c]
+----
+argparse_argspec_t spec = {
+    .name = "--name", .short_name = 'n',
+    .help = "Name to greet.", .required = true,
+};
+const char *n = argparse_str_from_opts(&p, spec);
+----
+
+== SEE ALSO
+
+*argparse*(3), *argparse_flag*(3), *argparse_init*(3),
+*argparse_finish*(3)

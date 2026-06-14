@@ -1,0 +1,69 @@
+= argparse_finish(3)
+:doctype: manpage
+:man source: argparse
+:man manual: argparse - command line argument parsing
+
+== NAME
+
+argparse_finish, argparse_finish_from_opts - finalize argument parsing
+
+== SYNOPSIS
+
+[source,c]
+----
+#include <argparse.h>
+
+argparse_result_t argparse_finish(argparse_parser_t *parser, ...);
+
+argparse_result_t argparse_finish_from_opts(argparse_parser_t *parser,
+    argparse_finish_opts_t opts);
+----
+
+== DESCRIPTION
+
+Prints help if requested, checks for unused args, validates required
+arguments, prints usage on failure, frees memory, then exits or
+returns.
+
+*argparse_finish_opts_t* members (both optional):
+
+*no_exit_on_failure*:: *bool* (default false).
+  Return *ARGPARSE_PARSE_FAILED* instead of *exit*(1).
+*no_exit_on_help*:: *bool* (default false).
+  Return *ARGPARSE_HELP_INVOKED* instead of *exit*(0).
+
+== RETURN VALUE
+
+*ARGPARSE_PARSE_OK* (0):: Success.
+*ARGPARSE_HELP_INVOKED* (1):: Help displayed.
+*ARGPARSE_PARSE_FAILED* (-1):: Parse error.
+
+By default the function does not return on help or failure (it calls
+*exit*(3)). Set *no_exit_on_* to override.
+
+== EXAMPLES
+
+[source,c]
+----
+if (argparse_finish(&p) != ARGPARSE_PARSE_OK)
+    return 1;
+----
+
+Non-exiting variant:
+
+[source,c]
+----
+argparse_result_t r = argparse_finish(&p,
+    .no_exit_on_failure = true,
+    .no_exit_on_help = true);
+switch (r) {
+case ARGPARSE_PARSE_OK:      break;
+case ARGPARSE_HELP_INVOKED:  return 0;
+case ARGPARSE_PARSE_FAILED:  return 1;
+}
+----
+
+== SEE ALSO
+
+*argparse*(3), *argparse_init*(3), *argparse_flag*(3),
+*argparse_str*(3)

@@ -1,0 +1,67 @@
+= argparse_init(3)
+:doctype: manpage
+:man source: argparse
+:man manual: argparse - command line argument parsing
+
+== NAME
+
+argparse_init, argparse_init_from_opts - initialize an argument parser
+
+== SYNOPSIS
+
+[source,c]
+----
+#include <argparse.h>
+
+argparse_parser_t argparse_init(int argc, char *argv[], ...);
+
+argparse_parser_t argparse_init_from_opts(int argc,
+    const char *argv[static argc], argparse_init_opts_t opts);
+----
+
+== DESCRIPTION
+
+Macro wrapper around *argparse_init_from_opts*(3) that accepts
+optional named fields.
+
+*argparse_init_opts_t* members (all optional):
+
+*no_help*:: *bool* (default false).
+  Suppress automatic *--help* / *-h*.
+*no_args_shows_help*:: *bool* (default false).
+  Show help when *argc* == 1.
+*tagline*:: *const char**.
+  Short line at top of help.
+*description*:: *const char**.
+  Text after tagline in help.
+*explicit_usage*:: *const char**.
+  Custom usage line (program name prepended).
+
+== RETURN VALUE
+
+An *argparse_parser_t* that must later be passed to *argparse_finish*(3).
+
+== EXAMPLES
+
+[source,c]
+----
+argparse_parser_t p = argparse_init(argc, argv,
+    .description = "Process data files.",
+    .tagline = "mydata v1.0");
+----
+
+Explicit struct form:
+
+[source,c]
+----
+argparse_init_opts_t opts = {
+    .description = "Process data files.",
+    .tagline = "mydata v1.0",
+};
+argparse_parser_t p = argparse_init_from_opts(argc, argv, opts);
+----
+
+== SEE ALSO
+
+*argparse*(3), *argparse_flag*(3), *argparse_str*(3),
+*argparse_finish*(3)

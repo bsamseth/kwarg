@@ -1,0 +1,109 @@
+= argparse(3)
+:doctype: manpage
+:man source: argparse
+:man manual: argparse - command line argument parsing
+
+== NAME
+
+argparse - overview of the argparse argument parsing library
+
+== SYNOPSIS
+
+[source,c]
+----
+#include <argparse.h>
+
+argparse_parser_t argparse_init(int argc, char *argv[], ...);
+unsigned argparse_flag(argparse_parser_t *parser, ...);
+const char *argparse_str(argparse_parser_t *parser, ...);
+argparse_result_t argparse_finish(argparse_parser_t *parser, ...);
+
+argparse_parser_t argparse_init_from_opts(int argc,
+    const char *argv[static argc], argparse_init_opts_t opts);
+unsigned argparse_flag_from_opts(argparse_parser_t *parser,
+    argparse_argspec_t opts);
+const char *argparse_str_from_opts(argparse_parser_t *parser,
+    argparse_argspec_t opts);
+argparse_result_t argparse_finish_from_opts(argparse_parser_t *parser,
+    argparse_finish_opts_t opts);
+----
+
+== DESCRIPTION
+
+*argparse* provides command-line parsing for C using C99 designated
+initializers. Each operation has a macro form (accepts named fields
+via compound literals) and a *_from_opts* backend (takes an explicit
+struct).
+
+=== Argument types
+
+*Flags*:: Boolean, counted. *--verbose -v -v* returns 3.
+  Short flags combine: *-abc* == *-a -b -c*. No values.
+*String options*:: Take a value: *--name=value* / *--name value* /
+  *-n value*. Can be marked *required*.
+*Positional*:: *name* without leading dash. Matches next non-option
+  word.
+
+=== Help
+
+Automatic *--help* (*-h*) flag added unless *no_help* is set.
+Customize with *tagline*, *description*, *explicit_usage*.
+
+== RETURN VALUE
+
+*argparse_init()*:: *argparse_parser_t*
+*argparse_flag()*:: *unsigned* (count)
+*argparse_str()*:: *const char** (or NULL)
+*argparse_finish()*:: *argparse_result_t*:
+  *ARGPARSE_PARSE_OK* (0), *ARGPARSE_HELP_INVOKED* (1),
+  *ARGPARSE_PARSE_FAILED* (-1).
+
+== EXAMPLES
+
+[source,c]
+----
+#include <stdio.h>
+#include <argparse.h>
+
+int main(int argc, char *argv[]) {
+    argparse_parser_t p = argparse_init(argc, argv,
+        .description = "A sample program.");
+
+    unsigned verbose = argparse_flag(&p,
+        .name = "--verbose", .short_name = 'v',
+        .help = "Increase verbosity.");
+
+    const char *name = argparse_str(&p,
+        .name = "--name", .short_name = 'n',
+        .help = "Name to greet.", .required = true);
+
+    const char *file = argparse_str(&p,
+        .name = "FILE",
+        .help = "File to process.");
+
+    argparse_finish(&p);
+
+    printf("verbosity: %u\n", verbose);
+    printf("name:      %s\n", name);
+    printf("file:      %s\n", file ? file : "(none)");
+    return 0;
+}
+----
+
+[source,console]
+----
+$ ./a.out --name=world file.txt
+verbosity: 0
+name:      world
+file:      file.txt
+
+$ ./a.out -n world -vvv file.txt
+verbosity: 3
+name:      world
+file:      file.txt
+----
+
+== SEE ALSO
+
+*argparse_init*(3), *argparse_flag*(3), *argparse_str*(3),
+*argparse_finish*(3)
