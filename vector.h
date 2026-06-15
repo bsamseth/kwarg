@@ -1,1 +1,0 @@
-/home/user/git/vector/vector.h
