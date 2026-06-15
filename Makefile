@@ -1,10 +1,10 @@
 CFLAGS := -Wall -Wextra -Wpedantic -std=c23
-MANPAGES := argparse argparse_init argparse_str argparse_flag argparse_finish
+MANPAGES := kwarg kwarg_init kwarg_str kwarg_flag kwarg_finish
 
 run: example
 	./example --help
 
-example: example.c argparse.h
+example: example.c kwarg.h
 	${CC} ${CFLAGS} -g $< -o $@
 
 test:

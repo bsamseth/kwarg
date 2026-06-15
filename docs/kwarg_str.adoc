@@ -1,11 +1,11 @@
-= argparse_str(3)
+= kwarg_str(3)
 :doctype: manpage
-:man source: argparse
-:man manual: argparse - command line argument parsing
+:man source: kwarg
+:man manual: kwarg - command line argument parsing
 
 == NAME
 
-argparse_str, argparse_str_from_opts - register a string option or
+kwarg_str, kwarg_str_from_opts - register a string option or
 positional argument
 
 == SYNOPSIS
@@ -13,13 +13,13 @@ positional argument
 [source,c]
 ----
 // At least one .c file needs this before the include:
-#define ARGPARSE_INCLUDE_IMPLEMENTATION
-#include <argparse.h>
+#define KWARG_INCLUDE_IMPLEMENTATION
+#include <kwarg.h>
 
-const char *argparse_str(argparse_parser_t *parser, ...);
+const char *kwarg_str(kwarg_parser_t *parser, ...);
 
-const char *argparse_str_from_opts(
-    argparse_parser_t *parser, argparse_argspec_t opts
+const char *kwarg_str_from_opts(
+    kwarg_parser_t *parser, kwarg_argspec_t opts
 );
 ----
 
@@ -77,11 +77,11 @@ short_name is '-' or '='            -> exit(1)
 
 [source,c]
 ----
-const char *name = argparse_str(&p,
+const char *name = kwarg_str(&p,
     .name = "--name", .short_name = 'n',
     .help = "Name to greet.", .required = true);
 
-const char *file = argparse_str(&p,
+const char *file = kwarg_str(&p,
     .name = "FILE", .help = "Input file.");
 ----
 
@@ -89,14 +89,14 @@ Backend form:
 
 [source,c]
 ----
-argparse_argspec_t spec = {
+kwarg_argspec_t spec = {
     .name = "--name", .short_name = 'n',
     .help = "Name to greet.", .required = true,
 };
-const char *name = argparse_str_from_opts(&p, spec);
+const char *name = kwarg_str_from_opts(&p, spec);
 ----
 
 == SEE ALSO
 
-*argparse*(3), *argparse_flag*(3), *argparse_init*(3),
-*argparse_finish*(3)
+*kwarg*(3), *kwarg_flag*(3), *kwarg_init*(3),
+*kwarg_finish*(3)

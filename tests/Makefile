@@ -10,7 +10,7 @@ test: testmain
 valgrind: testmain
 	valgrind ./testmain
 
-cases/%: cases/%.c ../argparse.h
+cases/%: cases/%.c ../kwarg.h
 	${CC} ${CFLAGS} -I.. $< -o $@
 
 testmain: testmain.c unity.h unity_internals.h unity.c $(TEST_CASES) $(wildcard cases/*.expected.txt) $(wildcard cases/*.args.txt)

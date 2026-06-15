@@ -1,34 +1,34 @@
-= argparse_init(3)
+= kwarg_init(3)
 :doctype: manpage
-:man source: argparse
-:man manual: argparse - Procedural Command Line Argument Parsing
+:man source: kwarg
+:man manual: kwarg - Procedural Command Line Argument Parsing
 
 == NAME
 
-argparse_init, argparse_init_from_opts - initialize an argument parser
+kwarg_init, kwarg_init_from_opts - initialize an argument parser
 
 == SYNOPSIS
 
 [source,c]
 ----
 // At least one .c file needs this before the include:
-#define ARGPARSE_INCLUDE_IMPLEMENTATION
-#include <argparse.h>
+#define KWARG_INCLUDE_IMPLEMENTATION
+#include <kwarg.h>
 
-argparse_parser_t argparse_init(int argc, char *argv[], ...);
+kwarg_parser_t kwarg_init(int argc, char *argv[], ...);
 
-argparse_parser_t argparse_init_from_opts(
-  int argc, const char *argv[static argc], argparse_init_opts_t opts
+kwarg_parser_t kwarg_init_from_opts(
+  int argc, const char *argv[static argc], kwarg_init_opts_t opts
 );
 ----
 
 == DESCRIPTION
 
 Creates a parser from the command-line arguments recorded in *argc* and
-*argv*. Must be called before any *argparse_flag*(), *argparse_str*(), or
-*argparse_finish*().
+*argv*. Must be called before any *kwarg_flag*(), *kwarg_str*(), or
+*kwarg_finish*().
 
-The macro form accepts optional named fields; the backend takes an explicit *argparse_init_opts_t*.
+The macro form accepts optional named fields; the backend takes an explicit *kwarg_init_opts_t*.
 
 *.no_help*:: *bool* (default false). Suppress the automatic *--help* / *-h* flag.
 *.no_args_shows_help*:: *bool* (default false). Show help when *argc* == 1 (no user arguments).
@@ -38,13 +38,13 @@ The macro form accepts optional named fields; the backend takes an explicit *arg
 
 == RETURN VALUE
 
-Returns an *argparse_parser_t* that must later be passed to *argparse_finish*(3).
+Returns an *kwarg_parser_t* that must later be passed to *kwarg_finish*(3).
 
 == EXAMPLES
 
 [source,c]
 ----
-argparse_parser_t p = argparse_init(argc, argv,
+kwarg_parser_t p = kwarg_init(argc, argv,
     .description = "Process data files.",
     .tagline = "mydata v1.0");
 ----
@@ -53,8 +53,8 @@ Explicit struct form:
 
 [source,c]
 ----
-argparse_parser_t p = argparse_init_from_opts(argc, argv,
-  (argparse_init_opts_t){
+kwarg_parser_t p = kwarg_init_from_opts(argc, argv,
+  (kwarg_init_opts_t){
     .description = "Process data files.",
     .tagline = "mydata v1.0",
   }
@@ -63,5 +63,5 @@ argparse_parser_t p = argparse_init_from_opts(argc, argv,
 
 == SEE ALSO
 
-*argparse*(3), *argparse_flag*(3), *argparse_str*(3),
-*argparse_finish*(3)
+*kwarg*(3), *kwarg_flag*(3), *kwarg_str*(3),
+*kwarg_finish*(3)

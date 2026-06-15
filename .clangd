@@ -6,5 +6,5 @@ CompileFlags:
       -Wpedantic,
       -std=c23,
       -xc-header,
-      -DARGPARSE_INCLUDE_IMPLEMENTATION,
+      -DKWARG_INCLUDE_IMPLEMENTATION,
     ]

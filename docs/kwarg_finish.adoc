@@ -1,0 +1,72 @@
+= kwarg_finish(3)
+:doctype: manpage
+:man source: kwarg
+:man manual: kwarg - command line argument parsing
+
+== NAME
+
+kwarg_finish, kwarg_finish_from_opts - finalize argument parsing
+
+== SYNOPSIS
+
+[source,c]
+----
+#include <kwarg.h>
+
+kwarg_result_t kwarg_finish(kwarg_parser_t *parser, ...);
+
+kwarg_result_t kwarg_finish_from_opts(
+  kwarg_parser_t *parser, kwarg_finish_opts_t opts
+);
+----
+
+== DESCRIPTION
+
+Finalizes argument parsing. This function:
+
+1. Prints help to stdout if *--help* was given (and returns/exits).
+2. Checks for unknown or unexpected arguments, writing diagnostics to stderr.
+3. Validates that all *required* options and positional arguments were provided.
+4. Prints usage to stderr on failure.
+5. Frees internal memory.
+6. Exits the program or returns a result, depending on the options.
+
+*.no_exit_on_failure*:: Return ``KWARG_PARSE_FAILED`` instead of calling *exit*.
+*no_exit_on_help*:: Return ``KWARG_HELP_INVOKED`` instead of calling *exit*(0).
+
+== RETURN VALUE
+
+``KWARG_PARSE_OK`` (0):: Parsing succeeded.
+``KWARG_HELP_INVOKED`` (1):: Help was requested; programs should exit without taking further action.
+``KWARG_PARSE_FAILED`` (-1):: A parse error occurred; diagnostics have been written to stderr.
+
+By default the function does not return on help or failure (it calls *exit*).
+Set ``.no_exit_on_help`` or ``.no_exit_on_failure`` to get a return value instead.
+
+== EXAMPLES
+
+Typical usage:
+
+[source,c]
+----
+kwarg_finish(&p);
+----
+
+Non-exiting variant:
+
+[source,c]
+----
+kwarg_result_t r = kwarg_finish(&p,
+    .no_exit_on_failure = true,
+    .no_exit_on_help = true);
+switch (r) {
+case KWARG_PARSE_OK:      break;
+case KWARG_HELP_INVOKED:  exit(0);
+case KWARG_PARSE_FAILED:  exit(1);
+}
+----
+
+== SEE ALSO
+
+*kwarg*(3), *kwarg_init*(3), *kwarg_flag*(3),
+*kwarg_str*(3)

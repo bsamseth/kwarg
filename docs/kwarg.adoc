@@ -1,45 +1,45 @@
-= argparse(3)
+= kwarg(3)
 :doctype: manpage
-:man source: argparse
-:man manual: argparse - Procedural Command Line Argument Parsing
+:man source: kwarg
+:man manual: kwarg - Procedural Command Line Argument Parsing
 
 == NAME
 
-argparse - Procedural Command Line Argument Parsing 
+kwarg - Procedural Command Line Argument Parsing 
 
 == SYNOPSIS
 
 [source,c]
 ----
 // At least one .c file needs this before the include:
-#define ARGPARSE_INCLUDE_IMPLEMENTATION
-#include <argparse.h>
+#define KWARG_INCLUDE_IMPLEMENTATION
+#include <kwarg.h>
 
-argparse_parser_t argparse_init(int argc, char *argv[], ...);
-unsigned argparse_flag(argparse_parser_t *parser, ...);
-const char *argparse_str(argparse_parser_t *parser, ...);
-argparse_result_t argparse_finish(argparse_parser_t *parser, ...);
+kwarg_parser_t kwarg_init(int argc, char *argv[], ...);
+unsigned kwarg_flag(kwarg_parser_t *parser, ...);
+const char *kwarg_str(kwarg_parser_t *parser, ...);
+kwarg_result_t kwarg_finish(kwarg_parser_t *parser, ...);
 
-argparse_parser_t argparse_init_from_opts(
-    int argc, const char *argv[static argc], argparse_init_opts_t opts
+kwarg_parser_t kwarg_init_from_opts(
+    int argc, const char *argv[static argc], kwarg_init_opts_t opts
 );
-unsigned argparse_flag_from_opts(
-    argparse_parser_t *parser, argparse_argspec_t opts
+unsigned kwarg_flag_from_opts(
+    kwarg_parser_t *parser, kwarg_argspec_t opts
 );
-const char *argparse_str_from_opts(
-    argparse_parser_t *parser,
-    argparse_argspec_t opts
+const char *kwarg_str_from_opts(
+    kwarg_parser_t *parser,
+    kwarg_argspec_t opts
 );
-argparse_result_t argparse_finish_from_opts(
-    argparse_parser_t *parser, argparse_finish_opts_t opts
+kwarg_result_t kwarg_finish_from_opts(
+    kwarg_parser_t *parser, kwarg_finish_opts_t opts
 );
 ----
 
 == DESCRIPTION
 
-*argparse* is a C23 header-only library for writing command-line programs.
+*kwarg* is a C23 header-only library for writing command-line programs.
 Arguments are declared with an ergonomic keyword-argument style that should
-feel familiar to users of Python's *argparse* module.
+feel familiar to users of Python's *kwarg* module.
 
 The distinguishing feature of this library is that argument values are parsed
 out immediately when the argument is defined. This let's you dynamically define
@@ -53,14 +53,14 @@ Every operation exists in two forms:
 
 === Compilation
 
-*argparse* requires a C23 compiler. Include the header in any number of
-translation units, but define *ARGPARSE_INCLUDE_IMPLEMENTATION* before
+*kwarg* requires a C23 compiler. Include the header in any number of
+translation units, but define *KWARG_INCLUDE_IMPLEMENTATION* before
 inclusion in at least one *.c* file to compile the implementation:
 
 [source,c]
 ----
-#define ARGPARSE_INCLUDE_IMPLEMENTATION
-#include <argparse.h>
+#define KWARG_INCLUDE_IMPLEMENTATION
+#include <kwarg.h>
 ----
 
 No additional libraries need to be linked.
@@ -81,42 +81,42 @@ An automatic *--help* (*-h*) flag is registered unless the parser is
 initialized with *.no_help = true*. When *.no_args_shows_help = true*,
 running the program with no arguments will display help. Help output can
 be customized with *.tagline*, *.description*, and *.explicit_usage*
-(see *argparse_init*(3)).
+(see *kwarg_init*(3)).
 
 == RETURN VALUE
 
-*argparse_init*():: ``argparse_parser_t``
-*argparse_flag*():: ``unsigned`` (0 or more)
-*argparse_str*():: ``const char *`` (or ``NULL`` if absent)
-*argparse_finish*():: ``argparse_result_t``:
-  ``ARGPARSE_PARSE_OK`` (0), ``ARGPARSE_HELP_INVOKED`` (1),
-  ``ARGPARSE_PARSE_FAILED`` (-1).
+*kwarg_init*():: ``kwarg_parser_t``
+*kwarg_flag*():: ``unsigned`` (0 or more)
+*kwarg_str*():: ``const char *`` (or ``NULL`` if absent)
+*kwarg_finish*():: ``kwarg_result_t``:
+  ``KWARG_PARSE_OK`` (0), ``KWARG_HELP_INVOKED`` (1),
+  ``KWARG_PARSE_FAILED`` (-1).
 
 == EXAMPLES
 
 [source,c]
 ----
-#define ARGPARSE_INCLUDE_IMPLEMENTATION
-#include <argparse.h>
+#define KWARG_INCLUDE_IMPLEMENTATION
+#include <kwarg.h>
 #include <stdio.h>
 
 int main(int argc, char *argv[]) {
-    argparse_parser_t p = argparse_init(argc, argv,
+    kwarg_parser_t p = kwarg_init(argc, argv,
         .description = "A sample program.",
         .tagline = "greet v1.0");
 
-    unsigned verbose = argparse_flag(&p,
+    unsigned verbose = kwarg_flag(&p,
         .name = "--verbose", .short_name = 'v',
         .help = "Increase verbosity.");
 
-    const char *name = argparse_str(&p,
+    const char *name = kwarg_str(&p,
         .name = "--name", .short_name = 'n',
         .help = "Name to greet.", .required = true);
 
-    const char *file = argparse_str(&p,
+    const char *file = kwarg_str(&p,
         .name = "FILE", .help = "File to process.");
 
-    argparse_finish(&p);
+    kwarg_finish(&p);
 
     printf("verbosity: %u\n", verbose);
     printf("name:      %s\n", name);
@@ -143,5 +143,5 @@ Usage: greet [-hv] -n=NAME [FILE]
 
 == SEE ALSO
 
-*argparse_init*(3), *argparse_flag*(3), *argparse_str*(3),
-*argparse_finish*(3)
+*kwarg_init*(3), *kwarg_flag*(3), *kwarg_str*(3),
+*kwarg_finish*(3)
