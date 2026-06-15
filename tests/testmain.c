@@ -65,7 +65,7 @@ static void run_case(const char *name) {
     return;
 
   struct dirent *entry;
-  while ((entry = readdir(dir)) != NULL) {
+  while ((entry = readdir(dir)) != nullptr) {
     if (strncmp(entry->d_name, prefix, strlen(prefix)) != 0)
       continue;
     const char *rest = entry->d_name + strlen(prefix);

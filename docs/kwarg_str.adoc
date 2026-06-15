@@ -58,7 +58,7 @@ by default; use *.required = true* to require them.
 
 == RETURN VALUE
 
-Returns a pointer to the value string, or ``NULL`` if the argument was
+Returns a pointer to the value string, or ``nullptr`` if the argument was
 not provided. The pointer points into the original *argv* array and
 must not be freed.
 
@@ -68,7 +68,7 @@ The following argument specification errors cause an immediate *exit*(1):
 
 [source]
 ----
-name == NULL                        -> exit(1)
+name == nullptr                     -> exit(1)
 name starts with one "-" (not "--") -> exit(1)
 short_name is '-' or '='            -> exit(1)
 ----

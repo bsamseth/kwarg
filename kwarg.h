@@ -221,14 +221,14 @@ static inline void _kwarg_tas_free(_kwarg_tas);
 kwarg_parser_t kwarg_init_from_opts(int argc, const char *argv[static argc],
                                     kwarg_init_opts_t opts) {
   assert(argc > 0);
-  assert(argv != NULL);
+  assert(argv != nullptr);
   kwarg_parser_t parser = {.argc = argc,
                            .argv = argv,
                            .remaining_arg_uses =
                                calloc(argc, sizeof(*parser.remaining_arg_uses)),
                            .argspecs = _kwarg_tas_init(argc),
                            .init_opts = opts};
-  assert(parser.remaining_arg_uses != NULL);
+  assert(parser.remaining_arg_uses != nullptr);
 
   // Short opts like -abc can be combined and should be parsed as many times
   // as there are short opts in the argument.
@@ -256,7 +256,7 @@ kwarg_parser_t kwarg_init_from_opts(int argc, const char *argv[static argc],
 }
 
 void _kwarg_show_help(const kwarg_parser_t *parser, FILE *out) {
-  if (out == NULL)
+  if (out == nullptr)
     out = stdout;
 
   if (parser->init_opts.tagline)
@@ -276,7 +276,7 @@ void _kwarg_show_help(const kwarg_parser_t *parser, FILE *out) {
 }
 
 void _kwarg_show_usage(const kwarg_parser_t *parser, FILE *out) {
-  if (out == NULL)
+  if (out == nullptr)
     out = stdout;
 
   fprintf(out, "Usage: %s ", parser->argv[0]);
@@ -285,7 +285,7 @@ void _kwarg_show_usage(const kwarg_parser_t *parser, FILE *out) {
 }
 
 void _kwarg_show_arguments_help(const kwarg_parser_t *parser, FILE *out) {
-  if (out == NULL)
+  if (out == nullptr)
     out = stdout;
 
   fprintf(out, "ARGUMENTS\n");
@@ -300,7 +300,7 @@ void _kwarg_show_arguments_help(const kwarg_parser_t *parser, FILE *out) {
 }
 
 void _kwarg_show_options_help(const kwarg_parser_t *parser, FILE *out) {
-  if (out == NULL)
+  if (out == nullptr)
     out = stdout;
 
   if (!parser->init_opts.no_help) {
@@ -340,7 +340,7 @@ void _kwarg_show_options_help(const kwarg_parser_t *parser, FILE *out) {
 const char *kwarg_str_from_opts(kwarg_parser_t *parser, kwarg_argspec_t opts) {
   _kwarg_validate_argspec(opts);
   bool is_option = opts.short_name || !strncmp(opts.name, "-", 1);
-  const char *user_provided_argument = NULL;
+  const char *user_provided_argument = nullptr;
   int provided_count = 0;
 
   for (size_t i = 1; i < parser->argc; ++i) {
@@ -483,7 +483,7 @@ static size_t _kwarg_arg_matches_short_opt(const char arg[static 1],
 kwarg_result_t kwarg_finish_from_opts(kwarg_parser_t *parser,
                                       kwarg_finish_opts_t opts) {
   if (parser->help) {
-    _kwarg_show_help(parser, NULL);
+    _kwarg_show_help(parser, nullptr);
     goto cleanup;
   }
 
@@ -570,7 +570,7 @@ void _kwarg_debug_dump_argspec(const kwarg_argspec_t opts) {
 }
 
 void _kwarg_validate_argspec(const kwarg_argspec_t opts) {
-  if (opts.name == NULL) {
+  if (opts.name == nullptr) {
     fprintf(stderr, "Invalid specification:\n");
     _kwarg_debug_dump_argspec(opts);
     fprintf(stderr,
@@ -910,7 +910,7 @@ bool rawvec_extend_from_within(rawvec *ptr, size_t offset, const void *source,
 
 rawvec rawvec_init(size_t initial_capacity) {
   __rawvec_t *vec = malloc(sizeof(__rawvec_t) + initial_capacity);
-  assert(vec != NULL);
+  assert(vec != nullptr);
   vec->count = 0;
   vec->capacity = initial_capacity;
   return __rawvec_user_ptr_from_rawvec(vec);
@@ -926,7 +926,7 @@ bool rawvec_resize(rawvec *ptr, size_t capacity) {
   size_t old_count = vec->count;
 
   vec = realloc(vec, sizeof(__rawvec_t) + capacity);
-  assert(vec != NULL);
+  assert(vec != nullptr);
   vec->capacity = capacity;
   if (old_count > capacity)
     vec->count = capacity;

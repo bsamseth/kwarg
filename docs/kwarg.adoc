@@ -87,7 +87,7 @@ be customized with *.tagline*, *.description*, and *.explicit_usage*
 
 *kwarg_init*():: ``kwarg_parser_t``
 *kwarg_flag*():: ``unsigned`` (0 or more)
-*kwarg_str*():: ``const char *`` (or ``NULL`` if absent)
+*kwarg_str*():: ``const char *`` (or ``nullptr`` if absent)
 *kwarg_finish*():: ``kwarg_result_t``:
   ``KWARG_PARSE_OK`` (0), ``KWARG_HELP_INVOKED`` (1),
   ``KWARG_PARSE_FAILED`` (-1).

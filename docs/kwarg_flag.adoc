@@ -51,7 +51,7 @@ The following argument specification errors cause an immediate *exit*:
 
 [source]
 ----
-name == NULL                        -> exit(1)
+name == nullptr                     -> exit(1)
 name starts with one "-" (not "--") -> exit(1)
 short_name is '-' or '='            -> exit(1)
 ----
