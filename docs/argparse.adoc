@@ -1,16 +1,18 @@
 = argparse(3)
 :doctype: manpage
 :man source: argparse
-:man manual: argparse - command line argument parsing
+:man manual: argparse - Procedural Command Line Argument Parsing
 
 == NAME
 
-argparse - overview of the argparse argument parsing library
+argparse - Procedural Command Line Argument Parsing 
 
 == SYNOPSIS
 
 [source,c]
 ----
+// At least one .c file needs this before the include:
+#define ARGPARSE_INCLUDE_IMPLEMENTATION
 #include <argparse.h>
 
 argparse_parser_t argparse_init(int argc, char *argv[], ...);
@@ -18,56 +20,90 @@ unsigned argparse_flag(argparse_parser_t *parser, ...);
 const char *argparse_str(argparse_parser_t *parser, ...);
 argparse_result_t argparse_finish(argparse_parser_t *parser, ...);
 
-argparse_parser_t argparse_init_from_opts(int argc,
-    const char *argv[static argc], argparse_init_opts_t opts);
-unsigned argparse_flag_from_opts(argparse_parser_t *parser,
-    argparse_argspec_t opts);
-const char *argparse_str_from_opts(argparse_parser_t *parser,
-    argparse_argspec_t opts);
-argparse_result_t argparse_finish_from_opts(argparse_parser_t *parser,
-    argparse_finish_opts_t opts);
+argparse_parser_t argparse_init_from_opts(
+    int argc, const char *argv[static argc], argparse_init_opts_t opts
+);
+unsigned argparse_flag_from_opts(
+    argparse_parser_t *parser, argparse_argspec_t opts
+);
+const char *argparse_str_from_opts(
+    argparse_parser_t *parser,
+    argparse_argspec_t opts
+);
+argparse_result_t argparse_finish_from_opts(
+    argparse_parser_t *parser, argparse_finish_opts_t opts
+);
 ----
 
 == DESCRIPTION
 
-*argparse* provides command-line parsing for C using C99 designated
-initializers. Each operation has a macro form (accepts named fields
-via compound literals) and a *_from_opts* backend (takes an explicit
-struct).
+*argparse* is a C23 header-only library for writing command-line programs.
+Arguments are declared with an ergonomic keyword-argument style that should
+feel familiar to users of Python's *argparse* module.
+
+The distinguishing feature of this library is that argument values are parsed
+out immediately when the argument is defined. This let's you dynamically define
+arguments depending on what the user selects, making sub-commands natural to
+write.
+
+Every operation exists in two forms:
+
+* a *macro* that accepts keyword arguments (e.g. ``.name = "--verbose", .short_name = 'v'``), and
+* a *_from_opts* backend function that takes an explicit option struct.
+
+=== Compilation
+
+*argparse* requires a C23 compiler. Include the header in any number of
+translation units, but define *ARGPARSE_INCLUDE_IMPLEMENTATION* before
+inclusion in at least one *.c* file to compile the implementation:
+
+[source,c]
+----
+#define ARGPARSE_INCLUDE_IMPLEMENTATION
+#include <argparse.h>
+----
+
+No additional libraries need to be linked.
 
 === Argument types
 
-*Flags*:: Boolean, counted. *--verbose -v -v* returns 3.
-  Short flags combine: *-abc* == *-a -b -c*. No values.
-*String options*:: Take a value: *--name=value* / *--name value* /
-  *-n value*. Can be marked *required*.
-*Positional*:: *name* without leading dash. Matches next non-option
-  word.
+Flags:: Flags are optional arguments that don't take a value. E.g.
+*--verbose/-v* could be defined to control the verbosity, and you'd get back
+the number of times it was given (0 or more). Short flags can be combine:
+*-abc* is equivalent to *-a -b -c*.
+Options:: Options are optional or required key-value pairs that can be specified at any location in the arguments. All these forms are allowed: *--name=value*, *--name value*, *-n=value* and *-n value*. Can be marked *required* with *.required = true*. 
+Positional arguments:: Positional arguments are defined as options without leading dashes in the name. Matches the next
+  non-option word in declaration order.
 
 === Help
 
-Automatic *--help* (*-h*) flag added unless *no_help* is set.
-Customize with *tagline*, *description*, *explicit_usage*.
+An automatic *--help* (*-h*) flag is registered unless the parser is
+initialized with *.no_help = true*. When *.no_args_shows_help = true*,
+running the program with no arguments will display help. Help output can
+be customized with *.tagline*, *.description*, and *.explicit_usage*
+(see *argparse_init*(3)).
 
 == RETURN VALUE
 
-*argparse_init()*:: *argparse_parser_t*
-*argparse_flag()*:: *unsigned* (count)
-*argparse_str()*:: *const char** (or NULL)
-*argparse_finish()*:: *argparse_result_t*:
-  *ARGPARSE_PARSE_OK* (0), *ARGPARSE_HELP_INVOKED* (1),
-  *ARGPARSE_PARSE_FAILED* (-1).
+*argparse_init*():: ``argparse_parser_t``
+*argparse_flag*():: ``unsigned`` (0 or more)
+*argparse_str*():: ``const char *`` (or ``NULL`` if absent)
+*argparse_finish*():: ``argparse_result_t``:
+  ``ARGPARSE_PARSE_OK`` (0), ``ARGPARSE_HELP_INVOKED`` (1),
+  ``ARGPARSE_PARSE_FAILED`` (-1).
 
 == EXAMPLES
 
 [source,c]
 ----
-#include <stdio.h>
+#define ARGPARSE_INCLUDE_IMPLEMENTATION
 #include <argparse.h>
+#include <stdio.h>
 
 int main(int argc, char *argv[]) {
     argparse_parser_t p = argparse_init(argc, argv,
-        .description = "A sample program.");
+        .description = "A sample program.",
+        .tagline = "greet v1.0");
 
     unsigned verbose = argparse_flag(&p,
         .name = "--verbose", .short_name = 'v',
@@ -78,8 +114,7 @@ int main(int argc, char *argv[]) {
         .help = "Name to greet.", .required = true);
 
     const char *file = argparse_str(&p,
-        .name = "FILE",
-        .help = "File to process.");
+        .name = "FILE", .help = "File to process.");
 
     argparse_finish(&p);
 
@@ -92,15 +127,18 @@ int main(int argc, char *argv[]) {
 
 [source,console]
 ----
-$ ./a.out --name=world file.txt
+$ ./greet --name=world file.txt
 verbosity: 0
 name:      world
 file:      file.txt
 
-$ ./a.out -n world -vvv file.txt
+$ ./greet -vn world -vv file.txt
 verbosity: 3
 name:      world
 file:      file.txt
+
+$ ./greet
+Usage: greet [-hv] -n=NAME [FILE]
 ----
 
 == SEE ALSO

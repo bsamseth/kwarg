@@ -1,67 +1,66 @@
 = argparse_flag(3)
 :doctype: manpage
 :man source: argparse
-:man manual: argparse - command line argument parsing
+:man manual: argparse - Procedural Command Line Argument Parsing
 
 == NAME
 
-argparse_flag, argparse_flag_from_opts - register a flag option
+argparse_flag, argparse_flag_from_opts - register a counted boolean flag
 
 == SYNOPSIS
 
 [source,c]
 ----
+// At least one .c file needs this before the include:
+#define ARGPARSE_INCLUDE_IMPLEMENTATION
 #include <argparse.h>
 
 unsigned argparse_flag(argparse_parser_t *parser, ...);
 
-unsigned argparse_flag_from_opts(argparse_parser_t *parser,
-    argparse_argspec_t opts);
+unsigned argparse_flag_from_opts(
+  argparse_parser_t *parser, argparse_argspec_t opts
+);
 ----
 
 == DESCRIPTION
 
-*argparse_flag*() registers a counted boolean flag. Each time the
-flag appears on the command line a counter is incremented. Flags
-accept no value; supplying one is an error. The macro wrapper
-accepts optional named fields; the backend takes an explicit
-*argparse_argspec_t*.
+Registers a flag: a counter that increments each time it appears
+on the command line. Flags do not take values; supplying one is an error.
 
-*argparse_argspec_t* members:
+*.name*:: *const char** (mandatory). Long flag name, e.g. *--verbose*.
+  Must start with *--*. A single leading dash (e.g. *-f*) is not allowed, as it would be ambiguous with short form options.
+*.short_name*:: *char*. Single character, e.g. 'v'. Characters *-* and *=* are not permitted.
+*.help*:: *const char** (optional). Help text for this flag.
 
-*name*:: *const char** (mandatory).
-  Long name, e.g. *--verbose*. Leading *--* makes it an option;
-  no dash means positional. Single-dash names assert.
-*short_name*:: *char*.
-  Single char, e.g. 'v'. '-' and '=' not permitted.
-*help*:: *const char**.
-  Help text.
-*required*:: *bool* (default false).
-  Ignored for flags.
+The *.required* field is ignored for flags, as a required flag serves no purpose.
 
 === Flag semantics
 
-Counted. *-v -v* returns 2. Short flags combine:
-*-abc* == *-a -b -c*. Values are an error: *-v=val* fails.
+* The return value is the number of times the flag was given:
+  *-v -v* returns 2, *-v* returns 1, absent returns 0.
+* Short flags can be combined: *-abc* is equivalent to *-a -b -c*.
+* A value after a flag is an error: *-v=val* fails.
 
 == RETURN VALUE
 
-Returns the number of times the flag was specified (0 or more).
+Returns the number of times the flag appeared (0 or more).
 
 == ERRORS
 
+The following argument specification errors cause an immediate *exit*:
+
 [source]
 ----
-name == NULL              -> exit(1)
-name starts with "-"      -> exit(1)
-short_name is '-' or '='  -> exit(1)
+name == NULL                        -> exit(1)
+name starts with one "-" (not "--") -> exit(1)
+short_name is '-' or '='            -> exit(1)
 ----
 
 == EXAMPLES
 
 [source,c]
 ----
-unsigned v = argparse_flag(&p,
+unsigned verbose = argparse_flag(&p,
     .name = "--verbose", .short_name = 'v',
     .help = "Increase verbosity.");
 ----
@@ -70,11 +69,12 @@ Backend form:
 
 [source,c]
 ----
-argparse_argspec_t spec = {
+unsigned verbose = argparse_flag_from_opts(&p, 
+  (argparse_argspec_t){
     .name = "--verbose", .short_name = 'v',
-    .help = "Increase verbosity.",
-};
-unsigned v = argparse_flag_from_opts(&p, spec);
+    .help = "Increase verbosity."
+  }
+);
 ----
 
 == SEE ALSO

@@ -1,7 +1,7 @@
 = argparse_init(3)
 :doctype: manpage
 :man source: argparse
-:man manual: argparse - command line argument parsing
+:man manual: argparse - Procedural Command Line Argument Parsing
 
 == NAME
 
@@ -11,35 +11,34 @@ argparse_init, argparse_init_from_opts - initialize an argument parser
 
 [source,c]
 ----
+// At least one .c file needs this before the include:
+#define ARGPARSE_INCLUDE_IMPLEMENTATION
 #include <argparse.h>
 
 argparse_parser_t argparse_init(int argc, char *argv[], ...);
 
-argparse_parser_t argparse_init_from_opts(int argc,
-    const char *argv[static argc], argparse_init_opts_t opts);
+argparse_parser_t argparse_init_from_opts(
+  int argc, const char *argv[static argc], argparse_init_opts_t opts
+);
 ----
 
 == DESCRIPTION
 
-Macro wrapper around *argparse_init_from_opts*(3) that accepts
-optional named fields.
+Creates a parser from the command-line arguments recorded in *argc* and
+*argv*. Must be called before any *argparse_flag*(), *argparse_str*(), or
+*argparse_finish*().
 
-*argparse_init_opts_t* members (all optional):
+The macro form accepts optional named fields; the backend takes an explicit *argparse_init_opts_t*.
 
-*no_help*:: *bool* (default false).
-  Suppress automatic *--help* / *-h*.
-*no_args_shows_help*:: *bool* (default false).
-  Show help when *argc* == 1.
-*tagline*:: *const char**.
-  Short line at top of help.
-*description*:: *const char**.
-  Text after tagline in help.
-*explicit_usage*:: *const char**.
-  Custom usage line (program name prepended).
+*.no_help*:: *bool* (default false). Suppress the automatic *--help* / *-h* flag.
+*.no_args_shows_help*:: *bool* (default false). Show help when *argc* == 1 (no user arguments).
+*.tagline*:: *const char**. Short line printed at the top of help output.
+*.description*:: *const char**. Description text printed after the tagline.
+*.explicit_usage*:: *const char**. Custom usage line. The program name is prepended automatically.
 
 == RETURN VALUE
 
-An *argparse_parser_t* that must later be passed to *argparse_finish*(3).
+Returns an *argparse_parser_t* that must later be passed to *argparse_finish*(3).
 
 == EXAMPLES
 
@@ -54,11 +53,12 @@ Explicit struct form:
 
 [source,c]
 ----
-argparse_init_opts_t opts = {
+argparse_parser_t p = argparse_init_from_opts(argc, argv,
+  (argparse_init_opts_t){
     .description = "Process data files.",
     .tagline = "mydata v1.0",
+  }
 };
-argparse_parser_t p = argparse_init_from_opts(argc, argv, opts);
 ----
 
 == SEE ALSO

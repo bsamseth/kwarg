@@ -12,68 +12,76 @@ positional argument
 
 [source,c]
 ----
+// At least one .c file needs this before the include:
+#define ARGPARSE_INCLUDE_IMPLEMENTATION
 #include <argparse.h>
 
 const char *argparse_str(argparse_parser_t *parser, ...);
 
-const char *argparse_str_from_opts(argparse_parser_t *parser,
-    argparse_argspec_t opts);
+const char *argparse_str_from_opts(
+    argparse_parser_t *parser, argparse_argspec_t opts
+);
 ----
 
 == DESCRIPTION
 
-*argparse_str*() registers a string-valued argument. If *name* starts
-with *--* or a *short_name* is given, it is treated as an option
-(taking a value); otherwise it is a positional argument. The macro
-wrapper accepts optional named fields; the backend takes an explicit
-*argparse_argspec_t*.
+Registers a string-valued argument. If *name* starts with *--* or a
+*short_name* is provided, the argument is treated as a named option. Otherwise
+it is a positional argument matched by order.
 
-*argparse_argspec_t* members:
-
-*name*:: *const char** (mandatory).
-  Long option name e.g. *--output*, or positional name e.g. *FILE*.
-  Leading *--* makes it an option; no dash means positional.
-  Single-dash names assert.
-*short_name*:: *char*.
-  Single char, e.g. 'o'. '-' and '=' not permitted.
-*help*:: *const char**.
-  Help text.
-*required*:: *bool* (default false).
-  For options and positional args.
+*.name*:: *const char** (mandatory). Option name e.g. *--output*, or
+  positional name e.g. *FILE*. A single leading dash (e.g. *-f*) is not allowed,
+  as it would be ambiguous with short form options.
+*.short_name*:: *char*. Short option character, e.g. 'o'. Only meaningful
+  for options. Characters *-* and *=* are not permitted.
+*.help*:: *const char** (optional). Help text.
+*.required*:: *bool* (default false). If *true* then parsing will fail if the option/positional is not provided.
 
 === String option syntax
 
-*--name=value*, *--name value*, *-n value*. Value-taking short opt
-must be last in a group: *-abc* where *-c* takes value consumes the
-next word.
+The value can be given as:
 
-=== Positional
+* *--name=value*
+* *--name value*
+* *-n=value*
+* *-n value*
 
-*name* without leading dash matches next non-option word.
+A value-taking short option must be the last character in a combined
+group: *-abc* where *-c* expects a value will consume the next word as
+its value, and *-acb* would be an error.
+
+=== Positional arguments
+
+A name without a leading dash. Positionals match non-option words on
+the command line in the order they were declared. They are optional
+by default; use *.required = true* to require them.
 
 == RETURN VALUE
 
-Returns a pointer to the value string, or NULL if not provided.
-The pointer is into *argv* and must not be freed.
+Returns a pointer to the value string, or ``NULL`` if the argument was
+not provided. The pointer points into the original *argv* array and
+must not be freed.
 
 == ERRORS
 
+The following argument specification errors cause an immediate *exit*(1):
+
 [source]
 ----
-name == NULL              -> exit(1)
-name starts with "-"      -> exit(1)
-short_name is '-' or '='  -> exit(1)
+name == NULL                        -> exit(1)
+name starts with one "-" (not "--") -> exit(1)
+short_name is '-' or '='            -> exit(1)
 ----
 
 == EXAMPLES
 
 [source,c]
 ----
-const char *n = argparse_str(&p,
+const char *name = argparse_str(&p,
     .name = "--name", .short_name = 'n',
     .help = "Name to greet.", .required = true);
 
-const char *f = argparse_str(&p,
+const char *file = argparse_str(&p,
     .name = "FILE", .help = "Input file.");
 ----
 
@@ -85,7 +93,7 @@ argparse_argspec_t spec = {
     .name = "--name", .short_name = 'n',
     .help = "Name to greet.", .required = true,
 };
-const char *n = argparse_str_from_opts(&p, spec);
+const char *name = argparse_str_from_opts(&p, spec);
 ----
 
 == SEE ALSO
