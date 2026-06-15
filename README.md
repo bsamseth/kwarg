@@ -112,6 +112,10 @@ Arguments are parsed eagerly. When you call `kwarg_flag` or `kwarg_str`, the
 function loops over `argv` immediately and returns the value. This lets you
 write code like this without a special subcommand mechanism:
 
+> [!NOTE]
+> This example won't provide very helpful help until "choices" are added as a
+> configuration, as it won't show whaat the available commands are otherwise.
+
 ```c
 auto parser = kwarg_init(argc, argv, .no_args_shows_help = true);
 
